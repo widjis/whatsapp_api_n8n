@@ -4,6 +4,7 @@ import makeWASocket, {
   DisconnectReason,
   Browsers
 } from '@whiskeysockets/baileys';
+import { bindHistory, loadHistory, saveHistory } from './utils/historyStore.js';
 import cors from 'cors';
 import { getUserPhotoFromDB } from './modules/db.js';
 import dotenv from 'dotenv';
@@ -171,13 +172,10 @@ const checkIP = async (req, res, next) => {
 
 const PORT = process.env.PORT || 8192;
 
-const store = makeInMemoryStore({ logger: Pino().child({ level: 'silent', stream: 'store' }) });
-
-// Read from the file to restore state
-store.readFromFile('./baileys_store.json');
-// Save the state to a file every 10 seconds
+loadHistory();
+// Save history to a file every 10 seconds
 setInterval(() => {
-    store.writeToFile('./baileys_store.json');
+    saveHistory();
 }, 10000);
 
 // Load alarms when the script starts
@@ -5542,8 +5540,8 @@ const startSock = async () => {
 
         });
 
-        // Bind the store to the socket events
-        store.bind(sock.ev);
+        // Bind history sync events to capture chats & messages
+        bindHistory(sock);
 
         sock.ev.on('creds.update', saveCreds);
 
