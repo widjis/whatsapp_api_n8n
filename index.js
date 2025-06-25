@@ -86,10 +86,18 @@ app.use(express.urlencoded({ extended: true })); // Middleware to parse x-www-fo
 
 //Implement Socket IO
 import path from 'path';
+import { fileURLToPath } from 'url';
+import NodeCache from 'node-cache';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 const server = createServer(app);
 const io = new Server(server);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// cache for group metadata to avoid rate limits when sending group messages
+const groupCache = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 
 //Excel file handling
 import ExcelJS from 'exceljs';
@@ -268,6 +276,7 @@ const findGroupByName = async (name) => {
   let groups;
   try {
       groups = Object.values(await sock.groupFetchAllParticipating());
+      groups.forEach(g => groupCache.set(g.id, g));
   } catch (error) {
       console.error('Error fetching groups:', error);
       return null;
@@ -291,6 +300,7 @@ const findGroupByName = async (name) => {
 const listGroups = async () => {
     console.log('Fetching all groups...');
     let groups = Object.values(await sock.groupFetchAllParticipating());
+    groups.forEach(g => groupCache.set(g.id, g));
     if (groups.length === 0) {
         console.log('No groups found.');
     } else {
@@ -5536,12 +5546,27 @@ const startSock = async () => {
             logger: Pino({ level: 'silent' }),
             //browser: Browsers.macOS('Desktop'),
             syncFullHistory: true,
-            printQRInTerminal: false // This ensures the QR code is printed in the terminal
+            printQRInTerminal: false, // This ensures the QR code is printed in the terminal
+            cachedGroupMetadata: async (jid) => groupCache.get(jid)
 
         });
 
         // Bind history sync events to capture chats & messages
         bindHistory(sock);
+
+        // keep group metadata fresh in cache
+        sock.ev.on('groups.upsert', groups => {
+            groups.forEach(g => groupCache.set(g.id, g));
+        });
+        sock.ev.on('groups.update', updates => {
+            updates.forEach(update => {
+                const prev = groupCache.get(update.id) || {};
+                groupCache.set(update.id, { ...prev, ...update });
+            });
+        });
+        sock.ev.on('group-participants.update', update => {
+            groupCache.del(update.id);
+        });
 
         sock.ev.on('creds.update', saveCreds);
 
