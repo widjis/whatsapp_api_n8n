@@ -1,34 +1,26 @@
-const {getUserPhotoFromDB} = require('./modules/db.js');
-require('dotenv').config();
+import makeWASocket, {
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  DisconnectReason,
+  Browsers
+} from '@whiskeysockets/baileys';
+import cors from 'cors';
+import { getUserPhotoFromDB } from './modules/db.js';
+import dotenv from 'dotenv';
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import qrcode from 'qrcode';
+import Pino from 'pino';
+import { Boom } from '@hapi/boom';
+import randomstring from 'randomstring';
+import multer from 'multer';
+import https from 'https';
+import { decode } from 'html-entities';
+import { storeMessage, getMessage, cleanupOldMessages, markMessageAsReacted, findReacterNumber } from './fileStore.js';
+import onedrive from './modules/onedrive.js';
+import { getAIBrowser } from './modules/perplexity.js';
 
-
-
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeInMemoryStore,Browsers } = require('@whiskeysockets/baileys');
-//const {default: makeWASocket,AnyMessageContent, BinaryInfo, delay, DisconnectReason, encodeWAM, fetchLatestBaileysVersion, getAggregateVotesInPollMessage, makeCacheableSignalKeyStore, makeInMemoryStore, PHONENUMBER_MCC, proto, useMultiFileAuthState, WAMessageContent, WAMessageKey}= require('@whiskeysockets/baileys');
-//import { WAMessageKey, WAMessageContent, proto } from '@whiskeysockets/baileys';
-const cors = require('cors');
-
-
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-//const qrcode = require('qrcode-terminal');
-const qrcode = require('qrcode');
-const Pino = require('pino');
-const { Boom } = require('@hapi/boom');
-const randomstring = require('randomstring');
-const multer = require('multer');
-//import { getUserPhotoFromDB } from './modules/db.js';
-
-
-const https = require('https');
-const { decode } = require('html-entities');
-const { storeMessage, getMessage, cleanupOldMessages, markMessageAsReacted , findReacterNumber} = require('./fileStore.js'); // Import file-based message store
-
-//initialize onedrive module
-const onedrive = require('./modules/onedrive.js');
-
-// Importing the getAIBrowser function from the perplexity module for AI browser capabilities
-const { getAIBrowser } = require('./modules/perplexity');
+dotenv.config();
 
 // Set up multer storage
 const storage = multer.diskStorage({
@@ -42,15 +34,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 //const upload = multer({ dest: 'uploads/' }); // Configure multer to save files to 'uploads/' directory
 //Import module alarm
-const schedule = require('node-schedule');
-//const { initializeSock, handleAlarm, alarms, loadAlarms, saveAlarms } = require('./alarm.js');
-const { initializeSock, handleAlarm, loadAlarms, saveAlarms, modifyAlarmById, listAlarmsByCondition } = require('./alarm.js');
+import schedule from 'node-schedule';
+import { initializeSock, handleAlarm, loadAlarms, saveAlarms, modifyAlarmById, listAlarmsByCondition } from './alarm.js';
 
 // This section is responsible for handling the integration with the ServiceDesk Plus API.
 // It includes functions to manage requests, update templates, and handle incoming webhooks.
-const ticketHandler = require('./modules/ticket_handle.js');
+import ticketHandler from './modules/ticket_handle.js';
 
-const {
+import {
   get_all_requests,
   view_request,
   updateRequest,
@@ -58,36 +49,34 @@ const {
   defineServiceCategory,
   ticket_report, // Added ticket_report to the imports
   handleAndAnalyzeAttachments //This function used to analyze PDF attachment on ticket
-} = ticketHandler;
-
+} from './modules/ticket_handle.js';
 console.log("Available functions:", Object.keys(ticketHandler));
 console.log("Create ticket function:", createTicket);
 
 //Initiate Redis
-const Redis = require('ioredis');
+import Redis from 'ioredis';
 const redis = new Redis(); // Defaults to localhost:6379
 
 //ChatGPT
-const OpenAI = require("openai");
+import OpenAI from 'openai';
 //keyopenai = "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";
 const keyopenai="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";
 const openai = new OpenAI({ apiKey: keyopenai });
 
-
 //Active Directory Integration
-const { exec } = require('child_process');
-const util = require('util');
-const ActiveDirectory = require('activedirectory2');
-const execPromise = util.promisify(exec);
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import ActiveDirectory from 'activedirectory2';
+const execPromise = promisify(exec);
 //import { MessageType, MessageOptions, Mimetype } from '@whiskeysockets/baileys'
 //Zabbix integration
-const axios = require('axios');
+import axios from 'axios';
 // const puppeteer = require('puppeteer-extra');
 // const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 // puppeteer.use(StealthPlugin());
 
 //Router OS
-const { RouterOSAPI } = require('node-routeros');
+import { RouterOSAPI } from 'node-routeros';
 
 const app = express();
 app.use(cors()); 
@@ -95,15 +84,17 @@ app.use(express.json()); // Middleware to parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Middleware to parse x-www-form-urlencoded bodies
 
 //Implement Socket IO
-const path = require('path');
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+import path from 'path';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+const server = createServer(app);
+const io = new Server(server);
 
 //Excel file handling
-const ExcelJS = require('exceljs');
-const fs = require('fs');
-const { downloadContentFromMessage, downloadMediaMessage } = require('@whiskeysockets/baileys');
-const mime = require('mime-types');
+import ExcelJS from 'exceljs';
+import fs from 'fs';
+import { downloadContentFromMessage, downloadMediaMessage } from '@whiskeysockets/baileys';
+import mime from 'mime-types';
 
 //ServiceDesk Plus
 const base_url = "https://helpdesk.merdekabattery.com:8080/api/v3/";
@@ -125,14 +116,14 @@ const agent = new https.Agent({
   rejectUnauthorized: false
 });
 //Load Technician contact
-const {
+import {
   getContactByName,
   getContactByPhone,
-  getContactByEmail,
+  getContactByEmail, 
   getContactByIctTechnicianName,
   addContact
-} = require('./technicianContacts.js');
-const { type } = require('os');
+} from './technicianContacts.js';
+import { type } from 'os';
 //----------------------------------------------------------------------
 
 // Serve the index.html file
