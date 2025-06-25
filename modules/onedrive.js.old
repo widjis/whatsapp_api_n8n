@@ -1,0 +1,262 @@
+// oneDrive.js
+const msal = require('@azure/msal-node');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
+const ExcelJS = require('exceljs');
+
+// Replace these values with your tenant information
+const clientId = '7a998675-357c-49ea-a462-fcf70afd6557';
+const tenantId = 'b428d519-22b4-458f-af45-f020150f5839';
+
+// Authority URL
+const authorityUrl = `https://login.microsoftonline.com/${tenantId}`;
+
+// The scope needed to access OneDrive
+const scopes = ["Files.ReadWrite.All"];
+
+// Create a MSAL public client application
+const msalConfig = {
+    auth: {
+        clientId,
+        authority: authorityUrl,
+    }
+};
+
+// Cache file location
+const cacheFilePath = path.join(__dirname, 'token_cache.json');
+const cca = new msal.PublicClientApplication(msalConfig);
+
+// Function to load cache from file
+function loadCache() {
+    if (fs.existsSync(cacheFilePath)) {
+        return JSON.parse(fs.readFileSync(cacheFilePath, 'utf8'));
+    }
+    return null;
+}
+
+// Function to save cache to file
+function saveCache(cache) {
+    fs.writeFileSync(cacheFilePath, JSON.stringify(cache), 'utf8');
+}
+
+// Load cache
+const cache = loadCache();
+if (cache) {
+    cca.tokenCache.deserialize(cache);
+}
+
+async function getAccessToken() {
+    try {
+        const accounts = await cca.getAllAccounts();
+        if (accounts.length > 0) {
+            return (await cca.acquireTokenSilent({
+                scopes,
+                account: accounts[0],
+            })).accessToken;
+        } else {
+            const deviceCodeResponse = await cca.acquireTokenByDeviceCode({
+                scopes,
+                deviceCodeCallback: (response) => {
+                    console.log(`Please authenticate by visiting ${response.verificationUri} and entering the code: ${response.userCode}`);
+                    const edgeCommand = process.platform === 'win32' 
+                        ? `start microsoft-edge:${response.verificationUri}` 
+                        : `open -a "Microsoft Edge" ${response.verificationUri}`;
+                    exec(edgeCommand, (error) => {
+                        if (error) {
+                            console.error('Failed to open Microsoft Edge:', error);
+                        }
+                    });
+                }
+            });
+            saveCache(cca.tokenCache.serialize());
+            return deviceCodeResponse.accessToken;
+        }
+    } catch (error) {
+        console.error('Error acquiring token:', error);
+        throw error;
+    }
+}
+
+async function createAxiosInstance() {
+    return axios.create({
+        baseURL: 'https://graph.microsoft.com/v1.0/',
+        headers: {
+            Authorization: `Bearer ${await getAccessToken()}`,
+        },
+    });
+}
+
+// General function to get worksheet from OneDrive file with enhanced error handling
+async function getWorksheet(fileName, sheetName) {
+    const fileData = await findSharedFileByName(fileName);
+    if (!fileData) {
+        console.log(`File '${fileName}' not found.`);
+        return null;
+    }
+
+    const { fileId, parentReference } = fileData;
+    const axiosInstance = await createAxiosInstance();
+
+    try {
+        const url = parentReference 
+            ? `sites/${parentReference.siteId}/drives/${parentReference.driveId}/items/${fileId}/content`
+            : `me/drive/items/${fileId}/content`;
+        const response = await axiosInstance.get(url, { responseType: 'arraybuffer' });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(Buffer.from(response.data));
+        const worksheet = workbook.getWorksheet(sheetName);
+        if (!worksheet) {
+            console.log(`Sheet '${sheetName}' not found in '${fileName}'.`);
+            return null;
+        }
+        return worksheet;
+    } catch (error) {
+        console.error(`Error reading sheet '${sheetName}' in '${fileName}':`, error.message);
+        
+        if (error.response) {
+            console.error('Error response data:', error.response.data);
+            console.error('Error response headers:', error.response.headers);
+
+            const errorMessage = error.response.data?.error?.message || 'No error message provided';
+            console.error('Detailed error message:', errorMessage);
+        } else {
+            console.error('Error:', error.message);
+        }
+        return null;
+    }
+}
+
+// List shared files in OneDrive
+async function listSharedFiles() {
+    const axiosInstance = await createAxiosInstance();
+    try {
+        const response = await axiosInstance.get('me/drive/sharedWithMe');
+        response.data.value.forEach(file => {
+            console.log(`Name: ${file.name || 'No Name'}, Id: ${file.id || 'No ID'}, Owner: ${file.createdBy?.user?.displayName || 'Unknown'}`);
+        });
+    } catch (error) {
+        console.error('Error fetching shared files:', error.message);
+    }
+}
+
+// Find a file by name in "Shared with Me"
+async function findSharedFileByName(fileName) {
+    const axiosInstance = await createAxiosInstance();
+    try {
+        const response = await axiosInstance.get('me/drive/sharedWithMe');
+        const matchingFiles = response.data.value.filter(file => file.name && file.name.includes(fileName));
+        if (matchingFiles.length > 0) {
+            console.log(`Found ${matchingFiles.length} file(s) matching '${fileName}':`);
+            matchingFiles.forEach(file => console.log(`Name: ${file.name}, Id: ${file.remoteItem.id}, Web URL: ${file.remoteItem.webUrl}`));
+            return {
+                fileId: matchingFiles[0].remoteItem.id,
+                parentReference: matchingFiles[0].remoteItem.parentReference
+            };
+        } else {
+            console.log(`No files found matching '${fileName}'.`);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error searching for shared files:', error.message);
+        return null;
+    }
+}
+
+// Read the "MTI Mailing List" sheet
+async function readMTIMailingList(fileName = 'MTI Mailing List.xlsx', sheetName = 'List New Hire') {
+    const worksheet = await getWorksheet(fileName, sheetName);
+    if (!worksheet) {
+        console.log('Failed to read the MTI Mailing List sheet.');
+        return null;
+    }
+    return worksheet;
+}
+
+// Read the "IT PRF Status" sheet and perform a query
+async function handlePRFQuery({ fileName = 'IT PRF MONITORING - Updated.xlsx', sheetName = 'IT PRF Status', options = {} }) {
+    const worksheet = await getWorksheet(fileName, sheetName);
+    if (!worksheet) return 'Worksheet not found in the specified file.';
+    const results = flexibleQueryPRFData(worksheet, options);
+    return results.length ? results.map(row => `PRF Number: ${row[3]}, Description: ${row[4]}, Status: ${row[7]}, Submitter: ${row[2]}.`).join('\n') : 'No matching records found.';
+}
+
+// Perform flexible queries on the PRF data
+function flexibleQueryPRFData(worksheet, options = {}) {
+    const {
+        description = '',
+        submitter = '',
+        prfNumber = '',
+        status = '',
+        additionalKeywords = []
+    } = options;
+
+    const results = [];
+
+    console.log("Starting flexible query on PRF data...");
+    console.log(`Query Options - Description: "${description}", Submitter: "${submitter}", PRF Number: "${prfNumber}", Status: "${status}", Additional Keywords: ${additionalKeywords}`);
+
+    worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+            console.log("Skipping header row...");
+            return; // Skip header row
+        }
+        // Commented out logging for processing row number
+        // console.log(`Processing row number: ${rowNumber}`);
+
+        // Safely retrieve cell values with optional chaining and default values
+        const rowDescription = row.getCell(5)?.text?.toString() || ""; 
+        const rowSubmitter = row.getCell(3)?.text?.toString() || "";
+        const rowPRFNumber = row.getCell(4)?.text?.toString() || "";
+        const rowStatus = row.getCell(8)?.text?.toString() || "";
+
+        let matches = true;
+
+        // Apply filters if provided in options
+        if (description && !rowDescription.toLowerCase().includes(description.toLowerCase())) {
+            matches = false;
+        }
+        if (submitter && !rowSubmitter.toLowerCase().includes(submitter.toLowerCase())) {
+            matches = false;
+        }
+        if (prfNumber && rowPRFNumber !== prfNumber) {
+            matches = false;
+        }
+        if (status && !rowStatus.toLowerCase().includes(status.toLowerCase())) {
+            matches = false;
+        }
+
+        // Check additional keywords if provided
+        if (additionalKeywords && additionalKeywords.length > 0) {
+            for (let keyword of additionalKeywords) {
+                if (!rowDescription.toLowerCase().includes(keyword.toLowerCase())) {
+                    matches = false;
+                    break;
+                }
+            }
+        }
+
+        if (matches) {
+            const rowData = [];
+            for (let i = 1; i <= 12; i++) {
+                const cellValue = row.getCell(i)?.text || "";
+                rowData.push(cellValue.toString());
+            }
+            results.push(rowData);
+        }
+    });
+
+    console.log(`Query completed. Total matching rows: ${results.length}`);
+    return results;
+}
+
+// Export the necessary functions
+module.exports = {
+    listSharedFiles,
+    findSharedFileByName,
+    getWorksheet,
+    readMTIMailingList,
+    flexibleQueryPRFData,
+    handlePRFQuery,
+};
