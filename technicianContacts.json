@@ -1,0 +1,107 @@
+[
+    {
+        "name": "Peggy (IT Support)",
+        "ict_name": "Peggy Putra (IT System Support)",
+        "phone": "6285731055050",
+        "email": "peggy.putra@merdekabattery.com",
+        "technician": "IT Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Andre (IT Support)",
+        "ict_name": "Andre Febrian Saputra (IT System Support)",
+        "phone": "6285881626656",
+        "email": "andre.saputra@merdekabattery.com",
+        "technician": "IT Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Widji (IT Support)",
+        "ict_name": "Widji Santoso (IT System Support)",
+        "phone": "6285712612218",
+        "email": "widji.santoso@merdekabattery.com",
+        "technician": "IT Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Arief (IT Infra)",
+        "ict_name": "Arief Putro (IT Field Support)",
+        "phone": "6285772463669",
+        "email": "arief.putro@merdekabattery.com",
+        "technician": "IT Field Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Hendrawan (IT Infra)",
+        "ict_name": "Hendrawan Setyo Pambudi (IT Field Support)",
+        "phone": "6281316087498",
+        "email": "hendrawan.pambudi@merdekabattery.com",
+        "technician": "IT Field Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Mahathir (IT Support)",
+        "ict_name": "Mahathir Muhammad (IT System Support)",
+        "phone": "6281352233453",
+        "email": "mahathir.muhammad@merdekabattery.com",
+        "technician": "IT Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Reza (IT Infra)",
+        "ict_name": "Reza Rezki Ramdan (IT Field Support)",
+        "phone": "6287859142545",
+        "email": "reza.ramdan@merdekabattery.com",
+        "technician": "IT Field Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Sahrun (IT Infra)",
+        "ict_name": "Sahrun (IT Field Support)",
+        "phone": "6285338861845",
+        "email": "sahrun@merdekabattery.com",
+        "technician": "IT Field Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Indah (Doc Con)",
+        "ict_name": "Indah Mutia (Document Control)",
+        "phone": "6285746838924",
+        "email": "indah.ayudita@merdekabattery.com",
+        "technician": "Document Control",
+        "gender": "Female"
+    },
+    {
+        "name": "Adriana (Doc Con)",
+        "ict_name": "Adriana Riska (Document Control)",
+        "phone": "6289524548777",
+        "email": "adriana.rante@merdekabattery.com",
+        "technician": "Document Control",
+        "gender": "Female"
+    },
+    {
+        "name": "Manda - Aden",
+        "ict_name": "Manda - Aden",
+        "phone": "6282320681688",
+        "email": null,
+        "technician": "Receptionist",
+        "gender": "Female"
+    },
+    {
+        "name": "Ferdie Johanes",
+        "ict_name": "Ferdie Johanes (IT Field Support)",
+        "phone": "6285758070996",
+        "email": "ferdie.johanes@merdekabattery.com",
+        "technician": "IT Field Support",
+        "gender": "Male"
+    },
+    {
+        "name": "Renitriana (Doc Con)",
+        "ict_name": "Renitriana (Document Control)",
+        "phone": "6282283288778",
+        "email": "reni.sitepu@merdekabattery.com",
+        "technician": "Document Control Officer",
+        "gender": "Female"
+    }
+    
+]
