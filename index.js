@@ -1,4 +1,5 @@
-import makeWASocket, {
+import {
+  makeWASocket, 
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason,
@@ -5544,7 +5545,7 @@ const startSock = async () => {
             version,
             auth: state,
             logger: Pino({ level: 'silent' }),
-            //browser: Browsers.macOS('Desktop'),
+            browser: Browsers.macOS('Desktop'),
             syncFullHistory: true,
             printQRInTerminal: false, // This ensures the QR code is printed in the terminal
             cachedGroupMetadata: async (jid) => groupCache.get(jid)
