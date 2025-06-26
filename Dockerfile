@@ -1,19 +1,17 @@
-# 1. Use Node 22 on Alpine for minimal size
+# Use Node 22 on Alpine for minimal footprint
 FROM node:22-alpine
 
-# 2. App directory
 WORKDIR /usr/src/app
 
-# 3. Install build deps & clean up
-RUN apk add --no-cache python3 make g++        \
-    # (some native modules may need python or build tools)
- && npm ci --only=production
+# Install only production deps
+COPY package*.json ./
+RUN npm install --omit=dev
 
-# 4. Copy code
+# Copy your app source
 COPY . .
 
-# 5. Expose port (adjust if your app uses another)
+# Listen on your hard-coded port
 EXPOSE 8192
 
-# 6. Start the server
+# Start the server
 CMD ["node", "index.js"]
