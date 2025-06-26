@@ -63,7 +63,7 @@ console.log("Create ticket function:", createTicket);
 import Redis from 'ioredis';
 //const redis = new Redis(); // Defaults to localhost:6379
 const redis = new Redis({
-  host: process.env.REDIS_HOST || '127.0.0.1',
+  host: process.env.REDIS_HOST || '10.60.10.46'
   port: parseInt(process.env.REDIS_PORT, 10) || 6379
 });
 redis.on('error', err => console.error('Redis error', err));
