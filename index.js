@@ -5634,7 +5634,8 @@ const startSock = async () => {
 
           // Differentiating message content
           const body = extractMessageContent(message);
-          hasImage = message.message.imageMessage;
+          const hasImage = message.message.imageMessage !== undefined;
+          //hasImage = message.message.imageMessage;
   
           if (body || hasImage) {
               if (body) {
