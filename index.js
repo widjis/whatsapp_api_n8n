@@ -1672,42 +1672,102 @@ function parseBitLockerInfo(output) {
 }
 
 async function getBitLockerInfo(hostname) {
+  console.log(`Getting BitLocker info for hostname: ${hostname}`);
+  let client;
+
   try {
-    const client = await getLdapClient();
-    const opts = {
-      filter: `(&(objectClass=msFVE-RecoveryInformation)(distinguishedName=*${hostname}*))`,
-      scope: 'sub',
-      attributes: ['msFVE-RecoveryPassword', 'distinguishedName'],
-    };
+    // 1) Connect
+    client = await getLdapClient();
+    console.log('LDAP client connected successfully');
 
-    const results = await new Promise((resolve, reject) => {
-      const entries = [];
-      client.search(process.env.LDAP_BASE_DN, opts, (err, res) => {
-        if (err) {
-          client.unbind();
-          return reject(err);
-        }
-        res.on('searchEntry', (e) => entries.push(e.object));
-        res.on('error', (err) => {
-          client.unbind();
-          reject(err);
-        });
-        res.on('end', () => {
-          client.unbind();
-          resolve(entries);
-        });
+    const baseDN = process.env.LDAP_BASE_DN;
+    console.log(`Using Base DN: ${baseDN}`);
+
+    const h = hostname.toUpperCase();
+
+    // Helper to run a search and return an array of entry objects
+    async function searchEntries(filter) {
+      console.log(`→ searching with filter: ${filter}`);
+      const results = [];
+      await new Promise((resolve, reject) => {
+        client.search(
+          baseDN,
+          { scope: 'sub', filter },
+          (err, res) => {
+            if (err) return reject(err);
+            res.on('searchEntry', e => results.push(e.object));
+            res.on('error', reject);
+            res.on('end', () => resolve());
+          }
+        );
       });
-    });
-
-    if (results.length === 0) {
-      return { success: false, error: 'Information not found' };
+      console.log(`  • found ${results.length} entries`);
+      return results;
     }
 
-    const combined = results.map(r => `msFVE-RecoveryPassword : ${r.msFVE-RecoveryPassword}\nDistinguishedName : ${r.distinguishedName}`).join('\n');
-    const output = parseBitLockerInfo(combined);
-    return { success: true, data: output };
+    // 2) First try: exact CN or sAMAccountName$
+    let computerEntries = await searchEntries(
+      `(&(objectCategory=computer)(|(cn=${h})(sAMAccountName=${h}$)))`
+    );
+
+    // 3) Fallback: wildcard CN (if nothing matched above)
+    if (computerEntries.length === 0) {
+      console.log('No exact match – trying wildcard CN...');
+      computerEntries = await searchEntries(
+        `(&(objectCategory=computer)(cn=${h}*))`
+      );
+    }
+
+    if (computerEntries.length === 0) {
+      client.unbind();
+      console.error(`Computer "${hostname}" not found in AD.`);
+      return { success: false, error: `Computer "${hostname}" not found` };
+    }
+
+    // 4) Use the first DN found
+    const computerDN = computerEntries[0].dn;
+    console.log(`Found computer DN: ${computerDN}`);
+
+    // 5) Now search under that DN for BitLocker recovery entries
+    const recoveryFilter = '(objectClass=msFVE-RecoveryInformation)';
+    console.log(`→ searching for recovery objects with: ${recoveryFilter}`);
+    const recoveryEntries = [];
+    await new Promise((resolve, reject) => {
+      client.search(
+        computerDN,
+        {
+          scope: 'sub',
+          filter: recoveryFilter,
+          attributes: ['msFVE-RecoveryPassword', 'whenCreated']
+        },
+        (err, res) => {
+          if (err) return reject(err);
+          res.on('searchEntry', e => recoveryEntries.push(e.object));
+          res.on('error', reject);
+          res.on('end', () => resolve());
+        }
+      );
+    });
+
+    client.unbind();
+
+    if (recoveryEntries.length === 0) {
+      console.error(`No BitLocker recovery objects under ${computerDN}`);
+      return { success: false, error: 'No recovery keys in AD' };
+    }
+
+    // 6) Sort by whenCreated and pick the newest
+    recoveryEntries.sort((a, b) =>
+      new Date(b.whenCreated) - new Date(a.whenCreated)
+    );
+    const newestPassword = recoveryEntries[0].msFVE-RecoveryPassword;
+    console.log('Returning newest recovery password');
+
+    return { success: true, data: newestPassword };
+
   } catch (error) {
-    console.error(`Error retrieving BitLocker info: ${error.message}`);
+    if (client) client.unbind();
+    console.error(`Error retrieving BitLocker info for ${hostname}:`, error);
     return { success: false, error: error.message };
   }
 }
