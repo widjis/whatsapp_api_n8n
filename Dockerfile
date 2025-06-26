@@ -1,18 +1,21 @@
-# 1. Base image (now Node 22)
-FROM node:22-alpine
+FROM mcr.microsoft.com/node:22-windowsservercore-ltsc2022
 
-# 2. Set working directory
-WORKDIR /usr/src/app
+# 0. Use PowerShell for RUN
+SHELL ["powershell", "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop';"]
 
-# 3. Copy & install dependencies
+# 1. Install AD module
+RUN Install-WindowsFeature RSAT-AD-PowerShell
+
+# 2. Set working dir
+WORKDIR C:\app
+
+# 3. Copy & install Node deps
 COPY package*.json ./
 RUN npm ci --only=production
 
-# 4. Copy app source
+# 4. Copy app code
 COPY . .
 
-# 5. Expose your app port (adjust if different)
+# 5. Expose port and launch
 EXPOSE 3000
-
-# 6. Launch
 CMD ["node", "index.js"]
