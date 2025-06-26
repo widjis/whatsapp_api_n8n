@@ -6,7 +6,7 @@ const { JSDOM } = require("jsdom");
 const path = require('path');
 const { Blob } = require('buffer');
 const FormData = require('form-data');
-const Tesseract = require('tesseract.js');
+// const Tesseract = require('tesseract.js');
 
 // //Google Gemini API 
 // const { GoogleGenerativeAI } = require("@google/generative-ai");
