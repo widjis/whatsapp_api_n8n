@@ -1,16 +1,32 @@
 version: '3.8'
+
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp_redis_dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    # no volumes by default—data is ephemeral in dev
+
   whatsapp-api:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    container_name: whatsapp_api_dev
+    depends_on:
+      - redis
+    environment:
+      NODE_ENV: development
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     volumes:
       - .:/usr/src/app
       - whatsapp_node_modules:/usr/src/app/node_modules
-    environment:
-      NODE_ENV: development
     ports:
       - "8192:8192"
-      - "9229:9229"
+      - "9229:9229"   # if you ever need a debugger
+    command: ["npm", "run", "dev"]
+
 volumes:
   whatsapp_node_modules:
