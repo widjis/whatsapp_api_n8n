@@ -1,8 +1,8 @@
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
-// const pdf = require('pdf-poppler');
-// const { JSDOM } = require("jsdom");
+const pdf = require('pdf-poppler');
+const { JSDOM } = require("jsdom");
 // const path = require('path');
 // const { Blob } = require('buffer');
 // const FormData = require('form-data');
