@@ -61,15 +61,12 @@ const redis = new Redis(); // Defaults to localhost:6379
 
 //ChatGPT
 import OpenAI from 'openai';
-//keyopenai = "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";
-const keyopenai="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";
+import ldap from 'ldapjs';
+const keyopenai = process.env.OPENAI_API_KEY;
 const openai = new OpenAI({ apiKey: keyopenai });
 
 //Active Directory Integration
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import ActiveDirectory from 'activedirectory2';
-const execPromise = promisify(exec);
 //import { MessageType, MessageOptions, Mimetype } from '@whiskeysockets/baileys'
 //Zabbix integration
 import axios from 'axios';
@@ -107,15 +104,10 @@ import { downloadContentFromMessage, downloadMediaMessage } from '@whiskeysocket
 import mime from 'mime-types';
 
 //ServiceDesk Plus
-const base_url = "https://helpdesk.merdekabattery.com:8080/api/v3/";
-// const headers = {
-//     "authtoken": "B5E4D2F5-024B-4400-9183-7DC13FD5457E",
-//     "Content-Type": "application/json"
-// };
-
+const base_url = process.env.SD_BASE_URL;
 const headers = {
-  'authtoken': 'B5E4D2F5-024B-4400-9183-7DC13FD5457E',
-  'Content-Type': 'application/x-www-form-urlencoded'
+  authtoken: process.env.SERVICE_DESK_TOKEN,
+  'Content-Type': 'application/x-www-form-urlencoded',
 };
 // Create an HTTPS agent that ignores self-signed certificates
 const httpsAgent = new https.Agent({
@@ -355,6 +347,22 @@ const mtiConfig = {
 // Create ActiveDirectory objects for each configuration
 const admti = new ActiveDirectory(mtiConfig);
 
+const getLdapClient = async () => {
+  const client = ldap.createClient({
+    url: process.env.LDAP_URL,
+    tlsOptions: { rejectUnauthorized: false },
+  });
+  return new Promise((resolve, reject) => {
+    client.bind(process.env.BIND_DN, process.env.BIND_PW, (err) => {
+      if (err) {
+        client.unbind();
+        return reject(err);
+      }
+      resolve(client);
+    });
+  });
+};
+
 function convertFileTimeToDateString(fileTime) {
     const EPOCH_DIFFERENCE = 11644473600000;
     const timeInMilliseconds = (fileTime / 10000) - EPOCH_DIFFERENCE;
@@ -370,9 +378,9 @@ function isExceptionallyLongDate(dateString) {
 
 //Zabbix configuration
 const zabbixConfig = {
-    url: 'http://10.60.10.15/zabbix/api_jsonrpc.php',
-    user: 'mti.admin',
-    password: 'MMT!@dmin23',
+    url: process.env.ZABBIX_URL,
+    user: process.env.ZABBIX_USER,
+    password: process.env.ZABBIX_PASSWORD,
   };
 
   async function loginToZabbix() {
@@ -488,8 +496,8 @@ const hostnameMapping = {
 
 //Snipe-IT configuration
 const snipeItConfig = {
-    url: 'http://10.60.10.49:8110/api/v1', // Your Snipe-IT URL
-    token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiYWIzYmY2MGQ5MGNiNzE3MDg4OTgyODFjNThhZmU1YWQ1OTc3MTQ1YWJkNTM4NmY5OGQ5MmU1ODRhODZlN2U0YzIxNzFlZDgxNzRmNTM3NzkiLCJpYXQiOjE3MTMyNDQyNzguNzMyODg2LCJuYmYiOjE3MTMyNDQyNzguNzMyODg4LCJleHAiOjIxODY1NDM0NzguNjY5OTYzLCJzdWIiOiIyIiwic2NvcGVzIjpbXX0.MMd4ps-k22HUJ2BQU5-uuey_BfLeM13piXvLq-19pKk0zyNIy2ynzTLsWv08dL1g8M5GbzdyOt_bvC9dDtu7Xi2b3Uov39bLPFqnIC39czMnX87Le8Eb9TMQZkrJ7J6GHCdEsOWyLwWHMtq1TS3XrqBLAbwOFospX7IrMV8067mDRRm5i-z2zD4orz5e5phc0jAuC-dt0oCR01A7EeR_a_R_1q5O0Ipc0r_zXYayENoD8vYD3ujiWs1j_HbiRdLLLQK07bORWGULN4wNed1dIbCFNUY8-WFBFV68kS-BM17nClqfaSrco4gIPS6-yB-55lvSJlj9zfO7svFs6TNTDSnOTC4CnhT6oxNxuu0rKDBWfou8GhoBmbQpB_ihjgrSfZiENQnzMfc3dp4KN7Etq6M5Qr6CtiD31HHYGGXnTmx1fnmm_c4CJ1agpMhDfKIdSeDG_wvYyPKs5Z4O_DHV5MxkXZD446BU8EP8Ov7oBH67yqoKXX376q9AwVDGd3PAancuPpm8wuemU58oLWI0eW0u8uDxf760Tyyt5rNKUqAAYHjFNNFmmGY2yvGjSRUgI1MKg1fZ-_WYv35JAEDd05n8sZAja-vZU_YeoLtNCixfYbaNl2DZtBxB3S6R6K0YtbDcdZBZaD7L-xERFBFC1Mc3CWExeUUxWXD8TvynnV0', // Your Snipe-IT API token
+    url: process.env.SNIPEIT_URL,
+    token: process.env.SNIPEIT_TOKEN,
   };
 
 const categoryMapping = {
@@ -1064,9 +1072,9 @@ async function performHeadlessTest(url) {
 //Mikrotik Integration
 const connectRouterOS = async () => {
     const conn = new RouterOSAPI({
-      host: '10.60.0.3', // Replace with your MikroTik router's IP address
-      user: 'apiwa', // Replace with your MikroTik router's username
-      password: 'n3wITM@2024', // Replace with your MikroTik router's password
+      host: process.env.MIKROTIK_HOST,
+      user: process.env.MIKROTIK_USER,
+      password: process.env.MIKROTIK_PASSWORD,
     });
   
     try {
@@ -1487,33 +1495,27 @@ function generatePassword(key) {
 
 async function addUserToGroup(user, groupName) {
   try {
-    const adUsername = 'mbma\\mti.admin';
-    const adPassword = 'MT!@T$1ng5h4n#2@24';
-    const dc = '10.60.10.56';
+    const client = await getLdapClient();
+    const userDN = `CN=${user},${process.env.BASE_OU}`;
+    const groupDN = `CN=${groupName},${process.env.BASE_OU}`;
+    const change = new ldap.Change({
+      operation: 'add',
+      modification: { member: userDN },
+    });
 
-    //const { adUsername, adPassword, dc, user } = await getCredentialsAndDC(upn);
-    //console.log(dc);
-    //console.log(adUsername);
-    //console.log(user);
-    // Construct PowerShell command to add the user to the specified group
-    let command = `Add-ADGroupMember -Server '${dc}' -Credential (New-Object System.Management.Automation.PSCredential ('${adUsername}', (ConvertTo-SecureString '${adPassword}' -AsPlainText -Force))) -Identity '${groupName}' -Members '${user}'`;
-
-    // Execute PowerShell command
-    const { stderr } = await exec(`powershell.exe -Command "${command}"`);
-    //console.log(command);
-
-    if (stderr) {
-      const errorMessage = stderr.match(/CategoryInfo\s+:\s+(.*)/)?.[1];
-      console.error(`Error adding user to group: ${errorMessage}`);
-      return { success: false, error: errorMessage };
-    }
+    await new Promise((resolve, reject) => {
+      client.modify(groupDN, change, (err) => {
+        client.unbind();
+        if (err) return reject(err);
+        resolve();
+      });
+    });
 
     console.log(`User ${user} added to group ${groupName} successfully`);
     return { success: true };
   } catch (error) {
-    const errorMessage = error.message.match(/CategoryInfo\s+:\s+(.*)/)?.[1];
-    console.error(`Error adding user to group: ${errorMessage}`);
-    return { success: false, error: errorMessage };
+    console.error(`Error adding user to group: ${error.message}`);
+    return { success: false, error: error.message };
   }
 }
 
@@ -1534,32 +1536,44 @@ const createUser = async ({
   password,
 }) => {
   try {
-    const adUsername = 'mbma\\mti.admin';
-    const adPassword = 'MT!@T$1ng5h4n#2@24';
-    const samaccount = username;
-    let command = `New-ADUser -Server '10.60.10.56' -Credential (New-Object System.Management.Automation.PSCredential ('${adUsername}', (ConvertTo-SecureString '${adPassword}' -AsPlainText -Force))) -Name '${name}' -GivenName '${firstName}' -Surname '${lastName}' -UserPrincipalName '${email}' -SamAccountName '${samaccount}' -Title '${title}' -Department '${department}' -EmailAddress '${email}' -Path '${ou}' -Manager '${directReport}' -MobilePhone '${phoneNumber}' -DisplayName '${displayName}' -Company '${company}' -Office '${office}' -AccountPassword (ConvertTo-SecureString '${password}' -AsPlainText -Force) -Enabled $true`;
+    const client = await getLdapClient();
+    const userDN = `CN=${name},${ou || process.env.BASE_OU}`;
+    const entry = {
+      cn: name,
+      sn: lastName,
+      givenName: firstName,
+      displayName,
+      mail: email,
+      userPrincipalName: email,
+      sAMAccountName: username,
+      title,
+      department,
+      company,
+      mobile: phoneNumber,
+      manager: directReport,
+      physicalDeliveryOfficeName: office,
+      objectClass: ['top', 'person', 'organizationalPerson', 'user'],
+      unicodePwd: Buffer.from(`"${password}"`, 'utf16le'),
+      userAccountControl: '512',
+    };
 
-    const { stdout, stderr } = await execPromise(`powershell -Command "& {${command}}"`);
-
-    if (stderr) {
-      if (stderr.includes('ResourceExists')) {
-        const existingUserMatch = stderr.match(/CN=([^,]+),/);
-        const existingUser = existingUserMatch ? existingUserMatch[1] : 'unknown';
-        console.error(`Error: User ${existingUser} already exists.`);
-        return { success: false, error: `User ${existingUser} already exists.` };
-      } else {
-        console.error('Error creating user:', stderr);
-        throw new Error(stderr);
-      }
-    } else {
-      console.log('User created successfully:', stdout);
-      const userInfo = `* Full Name: ${name}\n* Title: ${title}\n* Department: ${department}\n* Email: ${email}\n* Password: ${password}\n* Phone: ${phoneNumber}\n\n`;
-      return { success: true, userInfo };
-    }
+    return await new Promise((resolve) => {
+      client.add(userDN, entry, (err) => {
+        client.unbind();
+        if (err) {
+          if (err.code === 68) {
+            return resolve({ success: false, error: `User ${username} already exists.` });
+          }
+          return resolve({ success: false, error: err.message });
+        }
+        console.log('User created successfully:', userDN);
+        const userInfo = `* Full Name: ${name}\n* Title: ${title}\n* Department: ${department}\n* Email: ${email}\n* Password: ${password}\n* Phone: ${phoneNumber}\n\n`;
+        resolve({ success: true, userInfo });
+      });
+    });
   } catch (error) {
-    const errorMessage = error.message.match(/CategoryInfo\s+:\s+(.*)/)?.[1];
-    console.error(`Unexpected error creating user: ${errorMessage}`);
-    return { success: false, error: errorMessage };
+    console.error(`Unexpected error creating user: ${error.message}`);
+    return { success: false, error: error.message };
   }
 };
 
@@ -1567,36 +1581,40 @@ const createUser = async ({
 
 async function resetPassword(upn, newPassword, changePasswordAtNextLogon) {
   try {
-    const adUsername = 'mbma\\mti.admin';
-    const adPassword = 'MT!@T$1ng5h4n#2@24';
-    const dc = '10.60.10.56';
-    const user = upn;
+    const client = await getLdapClient();
+    const userDN = upn.includes(',') ? upn : `CN=${upn},${process.env.BASE_OU}`;
+    const changes = [
+      new ldap.Change({
+        operation: 'replace',
+        modification: {
+          unicodePwd: Buffer.from(`"${newPassword}"`, 'utf16le'),
+        },
+      }),
+    ];
 
-    //console.log(adUsername);
-    //console.log(adPassword);
-    //console.log(user);
-
-    // Construct PowerShell command to reset user password
-    let command = `Set-ADAccountPassword -Server '${dc}' -Credential (New-Object System.Management.Automation.PSCredential ('${adUsername}', (ConvertTo-SecureString '${adPassword}' -AsPlainText -Force))) -Identity '${user}' -Reset -NewPassword (ConvertTo-SecureString '${newPassword}' -AsPlainText -Force)`;
-
-    // Append command to change password at next logon if requested
     if (changePasswordAtNextLogon) {
-      command += `; Set-ADUser -Server '${dc}' -Credential (New-Object System.Management.Automation.PSCredential ('${adUsername}', (ConvertTo-SecureString '${adPassword}' -AsPlainText -Force))) -Identity '${user}' -ChangePasswordAtLogon $true`;
+      changes.push(
+        new ldap.Change({
+          operation: 'replace',
+          modification: { pwdLastSet: '0' },
+        })
+      );
     }
 
-    // Execute PowerShell command
-    const { stdout, stderr } = await execPromise(`powershell.exe -Command "${command}"`);
-
-    if (stderr) {
-      console.error(`Error resetting password: ${stderr}`);
-      return { success: false, error: stderr };
+    for (const change of changes) {
+      await new Promise((resolve, reject) => {
+        client.modify(userDN, change, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
     }
-
+    client.unbind();
     console.log(`Password reset for ${upn} successful`);
     return { success: true };
   } catch (error) {
-    console.error(`Error resetting password: ${JSON.stringify(error, null, 2)}`);
-    return { success: false, error: JSON.stringify(error, null, 2) };
+    console.error(`Error resetting password: ${error.message}`);
+    return { success: false, error: error.message };
   }
 }
 
@@ -1655,29 +1673,42 @@ function parseBitLockerInfo(output) {
 
 async function getBitLockerInfo(hostname) {
   try {
-    const adUsername = 'mbma\\mti.sysadmin';
-    const adPassword = 'Sy54dm1n@#Mb25';
-    const dc = '10.60.10.56';
+    const client = await getLdapClient();
+    const opts = {
+      filter: `(&(objectClass=msFVE-RecoveryInformation)(distinguishedName=*${hostname}*))`,
+      scope: 'sub',
+      attributes: ['msFVE-RecoveryPassword', 'distinguishedName'],
+    };
 
-    // Single-line PowerShell command to retrieve BitLocker recovery information using Format-List
-    let command = `
-    powershell.exe -Command "$SecurePass = ConvertTo-SecureString '${adPassword}' -AsPlainText -Force; $Cred = New-Object System.Management.Automation.PSCredential ('${adUsername}', $SecurePass); Get-ADObject -Server '${dc}' -Credential $Cred -Filter {objectClass -eq 'msFVE-RecoveryInformation'} -Property msFVE-RecoveryPassword, DistinguishedName | Where-Object { $_.DistinguishedName -like '*${hostname}*' } | Format-List -Property msFVE-RecoveryPassword, DistinguishedName"
-    `;
+    const results = await new Promise((resolve, reject) => {
+      const entries = [];
+      client.search(process.env.LDAP_BASE_DN, opts, (err, res) => {
+        if (err) {
+          client.unbind();
+          return reject(err);
+        }
+        res.on('searchEntry', (e) => entries.push(e.object));
+        res.on('error', (err) => {
+          client.unbind();
+          reject(err);
+        });
+        res.on('end', () => {
+          client.unbind();
+          resolve(entries);
+        });
+      });
+    });
 
-    // Execute the PowerShell command
-    const { stdout, stderr } = await execPromise(command.trim());
-    console.log(`BitLocker Info Output: ${stdout}`);
-    if (stderr) {
-      console.error(`Error retrieving BitLocker info: ${stderr}`);
-      return { success: false, error: stderr };
+    if (results.length === 0) {
+      return { success: false, error: 'Information not found' };
     }
 
-    // Return the output (parsed)
-    const output = parseBitLockerInfo(stdout);
+    const combined = results.map(r => `msFVE-RecoveryPassword : ${r.msFVE-RecoveryPassword}\nDistinguishedName : ${r.distinguishedName}`).join('\n');
+    const output = parseBitLockerInfo(combined);
     return { success: true, data: output };
   } catch (error) {
-    console.error(`Error retrieving BitLocker info: ${JSON.stringify(error, null, 2)}`);
-    return { success: false, error: JSON.stringify(error, null, 2) };
+    console.error(`Error retrieving BitLocker info: ${error.message}`);
+    return { success: false, error: error.message };
   }
 }
 
@@ -3031,7 +3062,7 @@ async function findUserByMobile(mobileNumber) {
 
 // Define the real getWeather function
 async function getWeather(location) {
-  const apiKey = '04ad3325297b46d2b8b123506242208'; // Your WeatherAPI key
+  const apiKey = process.env.WEATHER_API_KEY;
   const url = `http://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${location}&aqi=no`;
 
   try {
@@ -3996,7 +4027,7 @@ async function ticket_report_details() {
 
 // main();
 
-const newsapiKey = 'b4b6b0abdf6b4799af43ec157d23df3e'; // Your NewsAPI key
+const newsapiKey = process.env.NEWS_API_KEY;
 
 async function getNewsByFilters({
   query = '',
