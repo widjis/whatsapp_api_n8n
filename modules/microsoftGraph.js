@@ -76,24 +76,31 @@ async function getAccessToken() {
             console.log('Silent token acquisition did not return a valid token. Attempting device code flow...');
             // Attempt to acquire token interactively
             const deviceCodeResponse = await cca.acquireTokenByDeviceCode({
-                scopes: scopes,
+                scopes,
                 deviceCodeCallback: (response) => {
-                    console.log('Device code flow response message:', response.message);
-                    console.log('Please open the following URL in your browser and enter the code to authenticate:');
-                    console.log(`URL: ${response.verificationUri}`);
-                    console.log(`User Code: ${response.userCode}`);
-
-                    // Open the URL using Microsoft Edge
-                    const edgeCommand = process.platform === 'win32' 
-                        ? `start microsoft-edge:${response.verificationUri}` // Windows command to open Edge
-                        : `open -a "Microsoft Edge" ${response.verificationUri}`; // macOS command to open Edge
-                    exec(edgeCommand, (error) => {
-                        if (error) {
-                            console.error('Failed to open Microsoft Edge:', error);
-                        }
-                    });
+                  console.log('Device code flow response message:', response.message);
+                  console.log('Please open the following URL and enter the code to authenticate:');
+                  console.log(`  URL:       ${response.verificationUri}`);
+                  console.log(`  User Code: ${response.userCode}`);
+              
+                  let cmd;
+                  if (process.platform === 'win32') {
+                    cmd = `start microsoft-edge:${response.verificationUri}`;
+                  } else if (process.platform === 'darwin') {
+                    cmd = `open -a "Microsoft Edge" ${response.verificationUri}`;
+                  } else {
+                    cmd = `xdg-open ${response.verificationUri}`;
+                    // or to prefer Edge on Linux:
+                    // cmd = `microsoft-edge ${response.verificationUri} || xdg-open ${response.verificationUri}`;
+                  }
+              
+                  exec(cmd, (error, stdout, stderr) => {
+                    if (error) {
+                      console.error('Failed to launch browser:', error);
+                    }
+                  });
                 }
-            });
+              });
             tokenResponse = deviceCodeResponse;
             console.log('Token acquired interactively using device code.');
         }
