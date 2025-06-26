@@ -21,22 +21,22 @@ if (platform === 'win32') {
 }
 
 
-// import { bindHistory, loadHistory, saveHistory } from './utils/historyStore.js';
-// import cors from 'cors';
-// import { getUserPhotoFromDB } from './modules/db.js';
-// import dotenv from 'dotenv';
-// import express from 'express';
-// import { body, validationResult } from 'express-validator';
-// import qrcode from 'qrcode';
-// import Pino from 'pino';
-// import { Boom } from '@hapi/boom';
-// import randomstring from 'randomstring';
-// import multer from 'multer';
-// import https from 'https';
-// import { decode } from 'html-entities';
-// import { storeMessage, getMessage, cleanupOldMessages, markMessageAsReacted, findReacterNumber } from './fileStore.js';
-// import onedrive from './modules/onedrive.js';
-// import { getAIBrowser } from './modules/perplexity.js';
+import { bindHistory, loadHistory, saveHistory } from './utils/historyStore.js';
+import cors from 'cors';
+import { getUserPhotoFromDB } from './modules/db.js';
+import dotenv from 'dotenv';
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import qrcode from 'qrcode';
+import Pino from 'pino';
+import { Boom } from '@hapi/boom';
+import randomstring from 'randomstring';
+import multer from 'multer';
+import https from 'https';
+import { decode } from 'html-entities';
+import { storeMessage, getMessage, cleanupOldMessages, markMessageAsReacted, findReacterNumber } from './fileStore.js';
+import onedrive from './modules/onedrive.js';
+import { getAIBrowser } from './modules/perplexity.js';
 
 // dotenv.config();
 
