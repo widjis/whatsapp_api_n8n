@@ -51,7 +51,7 @@ const storage = multer.diskStorage({
 });
 
 
-// const upload = multer({ storage: storage });
+const upload = multer({ storage: storage });
 // //const upload = multer({ dest: 'uploads/' }); // Configure multer to save files to 'uploads/' directory
 // //Import module alarm
 // import schedule from 'node-schedule';
