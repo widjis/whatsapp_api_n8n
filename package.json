@@ -44,7 +44,7 @@
     "node-schedule": "^2.1.1",
     "nodeplotlib": "^1.1.2",
     "openai": "^4.86.2",
-    "pdf-poppler": "^0.2.1",
+    "pdf-parse": "^1.1.1",
     "pino": "^9.6.0",
     "puppeteer": "^24.4.0",
     "qrcode": "^1.5.4",
