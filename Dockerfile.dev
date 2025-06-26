@@ -1,20 +1,13 @@
-# Dockerfile.dev
-
-# 1. Use Node 22 on Alpine
 FROM node:22-alpine
-
-# 2. Work directory
 WORKDIR /usr/src/app
 
-# 3. Install ALL deps (including dev)
+# install all deps (including dev)
 COPY package*.json ./
 RUN npm install
 
-# 4. Copy your source
 COPY . .
 
-# 5. Expose your app port (and debugger port if needed)
 EXPOSE 8192 9229
 
-# 6. Run in dev mode
-CMD ["npm", "run", "dev"]
+# use npx so we don’t need global nodemon
+CMD ["npx", "nodemon", "--watch", ".", "--exec", "node index.js"]
