@@ -6,20 +6,6 @@ import {
   Browsers
 } from '@whiskeysockets/baileys';
 
-import os from 'os';
-
-const platform = os.platform();  // 'win32', 'darwin', 'linux', etc.
-
-if (platform === 'win32') {
-  console.log('Running on Windows');
-  // Windows-specific init…
-} else if (platform === 'darwin') {
-  // macOS init…
-} else {
-  console.error(`Hi... ${platform} is NOT supported.`);
-  process.exit(1);
-}
-
 
 import { bindHistory, loadHistory, saveHistory } from './utils/historyStore.js';
 import cors from 'cors';
