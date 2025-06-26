@@ -59,7 +59,7 @@ import { initializeSock, handleAlarm, loadAlarms, saveAlarms, modifyAlarmById, l
 
 // // This section is responsible for handling the integration with the ServiceDesk Plus API.
 // // It includes functions to manage requests, update templates, and handle incoming webhooks.
-// import ticketHandler from './modules/ticket_handle.js';
+import ticketHandler from './modules/ticket_handle.js';
 
 // import {
 //   get_all_requests,
