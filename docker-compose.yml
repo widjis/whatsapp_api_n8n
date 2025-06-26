@@ -1,0 +1,11 @@
+services:
+  whatsapp-api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./templates.json:/usr/src/app/templates.json
+      - ./baileys_store.json:/usr/src/app/baileys_store.json
+    ports:
+      - "8192:8192"

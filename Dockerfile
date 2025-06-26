@@ -13,7 +13,7 @@ RUN apk add --no-cache python3 make g++        \
 COPY . .
 
 # 5. Expose port (adjust if your app uses another)
-EXPOSE 3000
+EXPOSE 8192
 
 # 6. Start the server
 CMD ["node", "index.js"]
