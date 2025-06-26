@@ -1,7 +1,7 @@
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
-const pdf = require('pdf-poppler');
+const pdfParse = require('pdf-parse');
 const { JSDOM } = require("jsdom");
 const path = require('path');
 const { Blob } = require('buffer');
@@ -725,39 +725,12 @@ async function extractTextFromImage(imagePath) {
 
 // Helper function to extract text from the first page of a PDF
 async function extractTextFromPdfFirstPage(pdfPath) {
-    const outputDir = path.dirname(pdfPath); // Use the same directory for temporary files
-    //const firstPageImagePath = path.join(outputDir, `temp_first_page.jpg`);
-
-    const timestamp = Date.now();
-    const firstPageImagePath = path.join(outputDir, `temp_first_page_${timestamp}-1.jpg`);
-
     try {
-        // Convert the first page of the PDF to an image
-        await pdf.convert(pdfPath, {
-            format: 'jpeg',
-            out_dir: outputDir,
-            out_prefix: `temp_first_page_${timestamp}`,
-            page: 1, // Process only the first page
-        });
-
-        // Extract text from the converted image
-        const extractedText = await extractTextFromImage(firstPageImagePath);
-
-        // Clean up the temporary image
-        // Clean up the temporary image and any other files in the output directory
-        const files = fs.readdirSync(outputDir);
-        for (const file of files) {
-            fs.unlinkSync(path.join(outputDir, file));
-        }
-
-        return extractedText;
+        const dataBuffer = fs.readFileSync(pdfPath);
+        const data = await pdfParse(dataBuffer, { max: 1 });
+        return data.text;
     } catch (error) {
         console.error('Error extracting text from PDF first page:', error.message);
-        // Clean up the temporary image
-        const files = fs.readdirSync(outputDir);
-        for (const file of files) {
-            fs.unlinkSync(path.join(outputDir, file));
-        }
         throw error;
     }
 }
@@ -913,46 +886,14 @@ function extractContent(html) {
 
 
 async function convertPDFToImages(pdfPath, outputDir) {
-    // Ensure output directory exists
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-    }
-    // Generate a temporary, sanitized file name for processing
-    const tempPDFName = `temp_${Date.now()}.pdf`;
-    const tempPDFPath = path.join(outputDir, tempPDFName);
-    console.log(`The pdf now renamed to: ${tempPDFName}`);
     try {
-
-        fs.copyFileSync(pdfPath, tempPDFPath);
-        console.log(`Temporary sanitized PDF created: ${tempPDFPath}`);
-
-        const options = {
-            format: 'jpeg',
-            out_dir: outputDir,
-            out_prefix: 'page',
-            page: null, // Convert all pages
-        };
-
-
-        console.log(`Converting PDF at path "${tempPDFPath}" to images...`);
-        const result = await pdf.convert(tempPDFPath, options);
-        console.log(`PDF converted to images: ${result}`);
-
-        // List all generated image paths
-        const imagePaths = fs.readdirSync(outputDir)
-            .filter(file => file.startsWith('page') && file.endsWith('.jpg'))
-            .map(file => path.join(outputDir, file));
-        // Clean up the temporary PDF file
-        fs.unlinkSync(tempPDFPath);
-        console.log(`Temporary PDF deleted: ${tempPDFPath}`);
-        console.log('Generated image paths:', imagePaths);
-        return imagePaths;
+        const dataBuffer = fs.readFileSync(pdfPath);
+        const data = await pdfParse(dataBuffer);
+        // Split text into pages based on the delimiter used by pdf-parse
+        const pages = data.text.split('\f').map(p => p.trim()).filter(p => p);
+        return pages;
     } catch (error) {
-        console.error('Error converting PDF to images:', error.message);
-        // Clean up on error
-        if (fs.existsSync(tempPDFPath)) {
-            fs.unlinkSync(tempPDFPath);
-        }
+        console.error('Error extracting text from PDF:', error.message);
         throw error;
     }
 }
@@ -1155,30 +1096,21 @@ async function handleAndAnalyzeAttachments(requestDetails) {
                     if (isSrf) {
                         console.log(`PDF contains SRF-related content: ${attachmentName}`);
 
-                        const outputDir = path.join(__dirname, 'temp_pdf_images');
+                        const outputDir = path.join(__dirname, 'temp_pdf_text');
                         if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
                         const pdfPath = await downloadPDF(downloadUrl, attachmentName);
-                        const imagePaths = await convertPDFToImages(pdfPath, outputDir);
-
-                        // Analyze all PDF pages in parallel
-                        const pdfPrompt = `Extract requester name, the thing the user requested, and approval status from the direct manager.\n`;
-                        const pdfAnalysisResults = await Promise.all(
-                            imagePaths.map(async (imagePath) => {
-                                const base64Image = fs.readFileSync(imagePath).toString('base64');
-                                return await analyzeImageGemini(base64Image, pdfPrompt);
-                            })
-                        );
+                        const pagesText = await convertPDFToImages(pdfPath, outputDir);
 
                         const mentions = isTestEnvironment
                             ? ['6285712612218', '6281130569787']
                             : ['6282323336511', '6285712612218'];
 
-                        const combinedResult = pdfAnalysisResults.join('\n');
+                        const combinedResult = pagesText.join('\n');
 
                         const updatedPrompt = `
                             Kamu adala  h MTI ICT Helpdesk. Berdasarkan data yang akan saya berikan, kirimkan pesan dengan format:
-                            Pak ${mentions.map(mention => `@${mention}`).join(', ')}, terlampir SRF ${attachmentName}, dengan ticket ID ${requestDetails.id} dari (requester), terkait (jelaskan isi requestnya). Silahkan direview untuk approvalnya.
+                            Pak ${mentions.map(mention => `@${mention}`).join(', ')} , terlampir SRF ${attachmentName}, dengan ticket ID ${requestDetails.id} dari (requester), terkait (jelaskan isi requestnya). Silahkan direview untuk approvalnya.
                             Data:\n\n ${prompt} ${combinedResult}
                         `;
 
@@ -1186,12 +1118,8 @@ async function handleAndAnalyzeAttachments(requestDetails) {
 
                         await sendGroupMessage(chatId, finalAnalysis, mentions, documentPath = pdfPath);
 
-                        // Store the result
                         analyzedResults.push({ name: attachmentName, analysis: finalAnalysis, pdfPath });
-
-                        // Clean up generated images
-                        await Promise.all(imagePaths.map((imagePath) => fs.unlinkSync(imagePath)));
-                    } 
+                    }
                     else {
                         console.log(`PDF does not contain SRF-related content: ${attachmentName}`);
                     }
