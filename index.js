@@ -51,15 +51,15 @@ const storage = multer.diskStorage({
 });
 
 
-const upload = multer({ storage: storage });
-//const upload = multer({ dest: 'uploads/' }); // Configure multer to save files to 'uploads/' directory
-//Import module alarm
-import schedule from 'node-schedule';
-import { initializeSock, handleAlarm, loadAlarms, saveAlarms, modifyAlarmById, listAlarmsByCondition } from './alarm.js';
+// const upload = multer({ storage: storage });
+// //const upload = multer({ dest: 'uploads/' }); // Configure multer to save files to 'uploads/' directory
+// //Import module alarm
+// import schedule from 'node-schedule';
+// import { initializeSock, handleAlarm, loadAlarms, saveAlarms, modifyAlarmById, listAlarmsByCondition } from './alarm.js';
 
-// This section is responsible for handling the integration with the ServiceDesk Plus API.
-// It includes functions to manage requests, update templates, and handle incoming webhooks.
-import ticketHandler from './modules/ticket_handle.js';
+// // This section is responsible for handling the integration with the ServiceDesk Plus API.
+// // It includes functions to manage requests, update templates, and handle incoming webhooks.
+// import ticketHandler from './modules/ticket_handle.js';
 
 // import {
 //   get_all_requests,
