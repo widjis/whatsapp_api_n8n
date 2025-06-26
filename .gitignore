@@ -10,7 +10,7 @@ lerna-debug.log*
 *.env
 
 node_modules
-baileys_store.json
+baileys_store.*
 auth_info
 dist
 dist-ssr

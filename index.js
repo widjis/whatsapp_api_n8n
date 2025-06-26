@@ -5530,347 +5530,582 @@ const specificGroupIds = [
   '120363215673098371@g.us', // Group 2
 ];
 
-const startSock = async () => {
-    try {
-        console.log('Fetching latest Baileys version...');
-        const { version } = await fetchLatestBaileysVersion();
-        console.log('Using Baileys version:', version);
+// const startSock = async () => {
+//     try {
+//         console.log('Fetching latest Baileys version...');
+//         const { version } = await fetchLatestBaileysVersion();
+//         console.log('Using Baileys version:', version);
 
-        console.log('Initializing auth state...');
-        const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-        console.log('Auth state initialized');
+//         console.log('Initializing auth state...');
+//         const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+//         console.log('Auth state initialized');
 
-        console.log('Creating WhatsApp socket...');
-        sock = makeWASocket({
-            version,
-            auth: state,
-            logger: Pino({ level: 'silent' }),
-            browser: Browsers.macOS('Desktop'),
-            syncFullHistory: true,
-            printQRInTerminal: false, // This ensures the QR code is printed in the terminal
-            cachedGroupMetadata: async (jid) => groupCache.get(jid)
+//         console.log('Creating WhatsApp socket...');
+//         sock = makeWASocket({
+//             version,
+//             auth: state,
+//             logger: Pino({ level: 'silent' }),
+//             browser: Browsers.macOS('Desktop'),
+//             syncFullHistory: true,
+//             printQRInTerminal: false, // This ensures the QR code is printed in the terminal
+//             cachedGroupMetadata: async (jid) => groupCache.get(jid)
 
-        });
+//         });
 
-        // Bind history sync events to capture chats & messages
-        bindHistory(sock);
+//         // Bind history sync events to capture chats & messages
+//         bindHistory(sock);
 
-        // keep group metadata fresh in cache
-        sock.ev.on('groups.upsert', groups => {
-            groups.forEach(g => groupCache.set(g.id, g));
-        });
-        sock.ev.on('groups.update', updates => {
-            updates.forEach(update => {
-                const prev = groupCache.get(update.id) || {};
-                groupCache.set(update.id, { ...prev, ...update });
-            });
-        });
-        sock.ev.on('group-participants.update', update => {
-            groupCache.del(update.id);
-        });
+//         // keep group metadata fresh in cache
+//         sock.ev.on('groups.upsert', groups => {
+//             groups.forEach(g => groupCache.set(g.id, g));
+//         });
+//         sock.ev.on('groups.update', updates => {
+//             updates.forEach(update => {
+//                 const prev = groupCache.get(update.id) || {};
+//                 groupCache.set(update.id, { ...prev, ...update });
+//             });
+//         });
+//         sock.ev.on('group-participants.update', update => {
+//             groupCache.del(update.id);
+//         });
 
-        sock.ev.on('creds.update', saveCreds);
+//         sock.ev.on('creds.update', saveCreds);
 
-        sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update;
-            console.log('Connection update:', update);
-            if (connection === 'close') {
-              const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-              console.log('Connection closed, should reconnect:', shouldReconnect);
-              currentStatus = 'Disconnected, reconnecting...';
-              isAuthenticated = false;
-              currentQr = null;
-              io.emit('message', currentStatus);
-              if (shouldReconnect) {
-                  startSock();
-              }
-            } else if (connection === 'open') {
-                console.log('Connected to WhatsApp');
-                console.log('Connection opened');
-                currentStatus = 'WhatsApp is ready!';
-                currentQr = null;
-                isAuthenticated = true;
-                io.emit('ready', currentStatus);
-                io.emit('message', currentStatus);
-                io.emit('authenticated', currentStatus);
-                io.emit('authenticated', currentStatus);
-                // Fetch and log all groups
-                await listGroups();
+//         sock.ev.on('connection.update', async (update) => {
+//             const { connection, lastDisconnect, qr } = update;
+//             console.log('Connection update:', update);
+//             if (connection === 'close') {
+//               const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
+//               console.log('Connection closed, should reconnect:', shouldReconnect);
+//               currentStatus = 'Disconnected, reconnecting...';
+//               isAuthenticated = false;
+//               currentQr = null;
+//               io.emit('message', currentStatus);
+//               if (shouldReconnect) {
+//                   startSock();
+//               }
+//             } else if (connection === 'open') {
+//                 console.log('Connected to WhatsApp');
+//                 console.log('Connection opened');
+//                 currentStatus = 'WhatsApp is ready!';
+//                 currentQr = null;
+//                 isAuthenticated = true;
+//                 io.emit('ready', currentStatus);
+//                 io.emit('message', currentStatus);
+//                 io.emit('authenticated', currentStatus);
+//                 io.emit('authenticated', currentStatus);
+//                 // Fetch and log all groups
+//                 await listGroups();
         
-                // Test sending a message after connection is established
-                const testNumber = phoneNumberFormatter('085712612218');
-                const testMessage = 'MTI Whatsapp API Started!';
-                console.log('Testing sendMessage with number:', testNumber);
-                try {
-                    const response = await sock.sendMessage(testNumber, { text: testMessage });
-                    console.log('Test message sent:', response);
-                } catch (err) {
-                    console.error('Error sending test message:', err);
-                }
-            }
-            if (qr && !isAuthenticated) {
-              console.log('QR received:', qr);
-              try {
-                const url = await qrcode.toDataURL(qr);
-                console.log('QR code generated successfully');
-                currentQr = url;
-                io.emit('qr', url);
-                currentStatus = 'QR Code received, scan please!';
-                io.emit('message', currentStatus);
-              } catch (err) {
-                console.error('Error generating QR code:', err);
-              }
-            } else if (qr && isAuthenticated) {
-              console.log('Ignoring QR code as already authenticated');
-            }
-        });
+//                 // Test sending a message after connection is established
+//                 const testNumber = phoneNumberFormatter('085712612218');
+//                 const testMessage = 'MTI Whatsapp API Started!';
+//                 console.log('Testing sendMessage with number:', testNumber);
+//                 try {
+//                     const response = await sock.sendMessage(testNumber, { text: testMessage });
+//                     console.log('Test message sent:', response);
+//                 } catch (err) {
+//                     console.error('Error sending test message:', err);
+//                 }
+//             }
+//             if (qr && !isAuthenticated) {
+//               console.log('QR received:', qr);
+//               try {
+//                 const url = await qrcode.toDataURL(qr);
+//                 console.log('QR code generated successfully');
+//                 currentQr = url;
+//                 io.emit('qr', url);
+//                 currentStatus = 'QR Code received, scan please!';
+//                 io.emit('message', currentStatus);
+//               } catch (err) {
+//                 console.error('Error generating QR code:', err);
+//               }
+//             } else if (qr && isAuthenticated) {
+//               console.log('Ignoring QR code as already authenticated');
+//             }
+//         });
         
-        // Add this event listener to handle incoming messages
-        sock.ev.on('messages.upsert', async (m) => {
-          const message = m.messages[0];
-          if (!message.message) return;
-          message.message = Object.keys(message.message)[0] === "ephemeralMessage" ? message.message.ephemeralMessage.message : message.message;
-          console.log('Received a new message:', message);
+//         // Add this event listener to handle incoming messages
+//         sock.ev.on('messages.upsert', async (m) => {
+//           const message = m.messages[0];
+//           if (!message.message) return;
+//           message.message = Object.keys(message.message)[0] === "ephemeralMessage" ? message.message.ephemeralMessage.message : message.message;
+//           console.log('Received a new message:', message);
 
-          // Differentiating message content
-          const body = extractMessageContent(message);
-          const hasImage = message.message.imageMessage !== undefined;
-          //hasImage = message.message.imageMessage;
+//           // Differentiating message content
+//           const body = extractMessageContent(message);
+//           const hasImage = message.message.imageMessage !== undefined;
+//           //hasImage = message.message.imageMessage;
   
-          if (body || hasImage) {
-              if (body) {
-                  console.log(body);
-                  // Store the message only if it contains "New request"
-                  if (body.includes("New request")) {
-                      const key = `${message.key.remoteJid}_${message.key.id}`;
-                      storeMessage(message.key.id, message.key.remoteJid, JSON.stringify(message.message));
-                  }
-              }
-              if (message && message.key && message.key.remoteJid) {
-                  await handleMessage(sock, message);
-              } else {
-                  console.error('Invalid message structure:', message);
-              }
-          } else {
-              console.log('Received a message without text content:', message);
-          }
-        });
-        sock.ev.on('auth_failure', (session) => {
-            console.log('Authentication failed');
-            currentStatus = 'Auth failure, restarting...';
-            io.emit('message', currentStatus);
-        });
-        sock.ev.on('disconnected', (reason) => {
-            console.log('Disconnected:', reason);
-            currentStatus = 'WhatsApp is disconnected!';
-            io.emit('message', currentStatus);
-            sock.destroy();
-            startSock();
-        });
+//           if (body || hasImage) {
+//               if (body) {
+//                   console.log(body);
+//                   // Store the message only if it contains "New request"
+//                   if (body.includes("New request")) {
+//                       const key = `${message.key.remoteJid}_${message.key.id}`;
+//                       storeMessage(message.key.id, message.key.remoteJid, JSON.stringify(message.message));
+//                   }
+//               }
+//               if (message && message.key && message.key.remoteJid) {
+//                   await handleMessage(sock, message);
+//               } else {
+//                   console.error('Invalid message structure:', message);
+//               }
+//           } else {
+//               console.log('Received a message without text content:', message);
+//           }
+//         });
+//         sock.ev.on('auth_failure', (session) => {
+//             console.log('Authentication failed');
+//             currentStatus = 'Auth failure, restarting...';
+//             io.emit('message', currentStatus);
+//         });
+//         sock.ev.on('disconnected', (reason) => {
+//             console.log('Disconnected:', reason);
+//             currentStatus = 'WhatsApp is disconnected!';
+//             io.emit('message', currentStatus);
+//             sock.destroy();
+//             startSock();
+//         });
 
-        // Handle incoming reactions
-        sock.ev.on('messages.reaction', async (reaction) => {
-          if (!isReactionFromSpecificGroups(reaction[0], specificGroupIds)) {
-            console.log('Reaction not from the specified groups. Ignoring...');
-            return;
-          }
+//         // Handle incoming reactions
+//         sock.ev.on('messages.reaction', async (reaction) => {
+//           if (!isReactionFromSpecificGroups(reaction[0], specificGroupIds)) {
+//             console.log('Reaction not from the specified groups. Ignoring...');
+//             return;
+//           }
     
-          console.log('Reaction from a monitored group detected:', reaction[0]);
-          //console.log('Reaction detected:', reaction);
-          if (reaction && reaction.length > 0) {
-            const reactionMessage = reaction[0];
-            //const specificGroupId = '120363215673098371@g.us';
-            // if (reactionMessage.key.remoteJid !== specificGroupId) {
-            //   console.log('Reaction not from the specified group. Ignoring...');
-            //   return;
-            // }
+//           console.log('Reaction from a monitored group detected:', reaction[0]);
+//           //console.log('Reaction detected:', reaction);
+//           if (reaction && reaction.length > 0) {
+//             const reactionMessage = reaction[0];
+//             //const specificGroupId = '120363215673098371@g.us';
+//             // if (reactionMessage.key.remoteJid !== specificGroupId) {
+//             //   console.log('Reaction not from the specified group. Ignoring...');
+//             //   return;
+//             // }
         
-            const messageId = reactionMessage.key.id;
-            console.log('Message ID:', messageId);
-            const reacterId = reactionMessage.reaction.key.participant;
-            console.log('Reacter ID:', reacterId);
+//             const messageId = reactionMessage.key.id;
+//             console.log('Message ID:', messageId);
+//             const reacterId = reactionMessage.reaction.key.participant;
+//             console.log('Reacter ID:', reacterId);
         
-            if (!reacterId) {
-              console.error('Participant is undefined:', reactionMessage);
-              return;
-            }
+//             if (!reacterId) {
+//               console.error('Participant is undefined:', reactionMessage);
+//               return;
+//             }
         
-            const reacterNumber = phoneNumberFormatter(reacterId.split('@')[0]);
+//             const reacterNumber = phoneNumberFormatter(reacterId.split('@')[0]);
         
-            try {
-              let technician;
-              let ictTechnician = 'Not registered';
-              try {
-                technician = getContactByPhone(reacterNumber);
-                if (technician) {
-                  ictTechnician = technician.ict_name;
-                } else {
-                  console.warn(`Technician not found for reacter number: ${reacterNumber}`);
-                }
-              } catch (error) {
-                console.error('Error fetching technician by phone:', error.message);
-              }
-              console.log(`${ictTechnician} is reacting to the message`);
-              // getMessage(messageId, reactionMessage.key.remoteJid, async (message) => {
-              //   console.log('Message callback executed');
-              //   console.log('Message:', message);
-              // });
+//             try {
+//               let technician;
+//               let ictTechnician = 'Not registered';
+//               try {
+//                 technician = getContactByPhone(reacterNumber);
+//                 if (technician) {
+//                   ictTechnician = technician.ict_name;
+//                 } else {
+//                   console.warn(`Technician not found for reacter number: ${reacterNumber}`);
+//                 }
+//               } catch (error) {
+//                 console.error('Error fetching technician by phone:', error.message);
+//               }
+//               console.log(`${ictTechnician} is reacting to the message`);
+//               // getMessage(messageId, reactionMessage.key.remoteJid, async (message) => {
+//               //   console.log('Message callback executed');
+//               //   console.log('Message:', message);
+//               // });
 
-              getMessage(messageId, reactionMessage.key.remoteJid, async (err, message) => {
-                if (err) {
-                    console.error('Error fetching message:', err.message);
-                    return;
-                }
+//               getMessage(messageId, reactionMessage.key.remoteJid, async (err, message) => {
+//                 if (err) {
+//                     console.error('Error fetching message:', err.message);
+//                     return;
+//                 }
             
-                if (!message) {
-                    console.warn(`Message not found in Redis for key: ${reactionMessage.key.remoteJid}_${messageId}`);
-                    return;
-                }
+//                 if (!message) {
+//                     console.warn(`Message not found in Redis for key: ${reactionMessage.key.remoteJid}_${messageId}`);
+//                     return;
+//                 }
             
-                console.log('Message fetched successfully:', message);
+//                 console.log('Message fetched successfully:', message);
 
-                // Proceed with your logic here
-                let messageContent;
-                try {
-                  messageContent = JSON.parse(message.message);
-                } catch (parseError) {
-                  console.error('Error parsing message content:', parseError);
-                  console.error('Malformed JSON:', message.message);
-                  return;
-                }
+//                 // Proceed with your logic here
+//                 let messageContent;
+//                 try {
+//                   messageContent = JSON.parse(message.message);
+//                 } catch (parseError) {
+//                   console.error('Error parsing message content:', parseError);
+//                   console.error('Malformed JSON:', message.message);
+//                   return;
+//                 }
       
-                const messageText = messageContent.extendedTextMessage?.text || messageContent.conversation;
+//                 const messageText = messageContent.extendedTextMessage?.text || messageContent.conversation;
       
-                if (messageText) {
-                  const ticketNumberMatch = messageText.match(/\*Ticket number:\* (\d+)/);
-                  if (ticketNumberMatch) {
-                    const ticketNumber = ticketNumberMatch[1];
-                    console.log(`Extracted ticket number: ${ticketNumber}`);
+//                 if (messageText) {
+//                   const ticketNumberMatch = messageText.match(/\*Ticket number:\* (\d+)/);
+//                   if (ticketNumberMatch) {
+//                     const ticketNumber = ticketNumberMatch[1];
+//                     console.log(`Extracted ticket number: ${ticketNumber}`);
       
-                    try {
-                      const workOrderResponse = await axios.get(`${base_url}requests/${ticketNumber}`, { headers, httpsAgent });
-                      const workOrder = workOrderResponse.data.request;
-                      const requesterMobile = workOrder.requester.mobile ? phoneNumberFormatter(workOrder.requester.mobile) : 'N/A';
-                      let requesterName = workOrder.requester.name.replace('[MTI]', '').trim();
+//                     try {
+//                       const workOrderResponse = await axios.get(`${base_url}requests/${ticketNumber}`, { headers, httpsAgent });
+//                       const workOrder = workOrderResponse.data.request;
+//                       const requesterMobile = workOrder.requester.mobile ? phoneNumberFormatter(workOrder.requester.mobile) : 'N/A';
+//                       let requesterName = workOrder.requester.name.replace('[MTI]', '').trim();
       
-                      if (!message.reacted) {
-                        await assignICTTechnician(ticketNumber, ictTechnician);
-                        markMessageAsReacted(messageId, reactionMessage.key.remoteJid, reacterNumber);
+//                       if (!message.reacted) {
+//                         await assignICTTechnician(ticketNumber, ictTechnician);
+//                         markMessageAsReacted(messageId, reactionMessage.key.remoteJid, reacterNumber);
       
-                        // You may uncomment the following lines if needed for notifying the requester.
-                        /*
-                        const notifyNumber = requesterMobile !== 'N/A' ? requesterMobile : phoneNumberFormatter('085712612218');
-                        const technicianName = technician ? technician.name : reacterNumber;
-                        const notifyMessage = `Dear *${requesterName}*,\n\nYour ticket with number *${ticketNumber}* is now being handled by *${technicianName}*. Please wait while our technician reaches out to you.\n\n*To monitor your request, please see the link below:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${ticketNumber}&PORTALID=1`;
-                        await sock.sendMessage(notifyNumber, { text: notifyMessage });
-                        */
-                      } else {
-                        // Find the reacter's number using the message ID and remote JID
-                        const reacterId = await findReacterNumber(messageId, reactionMessage.key.remoteJid);
+//                         // You may uncomment the following lines if needed for notifying the requester.
+//                         /*
+//                         const notifyNumber = requesterMobile !== 'N/A' ? requesterMobile : phoneNumberFormatter('085712612218');
+//                         const technicianName = technician ? technician.name : reacterNumber;
+//                         const notifyMessage = `Dear *${requesterName}*,\n\nYour ticket with number *${ticketNumber}* is now being handled by *${technicianName}*. Please wait while our technician reaches out to you.\n\n*To monitor your request, please see the link below:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${ticketNumber}&PORTALID=1`;
+//                         await sock.sendMessage(notifyNumber, { text: notifyMessage });
+//                         */
+//                       } else {
+//                         // Find the reacter's number using the message ID and remote JID
+//                         const reacterId = await findReacterNumber(messageId, reactionMessage.key.remoteJid);
 
-                        // Format the reacter's number to a phone number format
-                        const reacterNumber = phoneNumberFormatter(reacterId.split('@')[0]);
+//                         // Format the reacter's number to a phone number format
+//                         const reacterNumber = phoneNumberFormatter(reacterId.split('@')[0]);
                         
-                        // Get the existing technician's name based on the reacter's phone number
-                        const existingTechnicianName = reacterNumber ? getContactByPhone(reacterNumber).ict_name : "another technician";
+//                         // Get the existing technician's name based on the reacter's phone number
+//                         const existingTechnicianName = reacterNumber ? getContactByPhone(reacterNumber).ict_name : "another technician";
                         
-                        // Notify the reacter that the ticket has already been handled by another technician
-                        const notifyReacter = `Sorry, this ticket *${ticketNumber}* has been handled by *${existingTechnicianName}*.`;
+//                         // Notify the reacter that the ticket has already been handled by another technician
+//                         const notifyReacter = `Sorry, this ticket *${ticketNumber}* has been handled by *${existingTechnicianName}*.`;
                         
-                        // Send the notification message to the reacter
-                        await sock.sendMessage(reactionMessage.key.remoteJid, { text: notifyReacter });
-                      }
-                    } catch (workOrderError) {
-                      console.error('Error fetching work order details:', workOrderError);
-                    }
-                  } else {
-                    console.error('Ticket number not found in message text:', messageText);
-                  }
-                } else {
-                  console.log('Message text not found or already reacted:', messageId);
-                }
+//                         // Send the notification message to the reacter
+//                         await sock.sendMessage(reactionMessage.key.remoteJid, { text: notifyReacter });
+//                       }
+//                     } catch (workOrderError) {
+//                       console.error('Error fetching work order details:', workOrderError);
+//                     }
+//                   } else {
+//                     console.error('Ticket number not found in message text:', messageText);
+//                   }
+//                 } else {
+//                   console.log('Message text not found or already reacted:', messageId);
+//                 }
 
-              });
+//               });
 
 
-              // getMessage(messageId, reactionMessage.key.remoteJid, async (message) => {
-              //   //console.log('Message:', message);
-              //   if (message) {
-              //     let messageContent;
-              //     try {
-              //       messageContent = JSON.parse(message.message);
-              //     } catch (parseError) {
-              //       console.error('Error parsing message content:', parseError);
-              //       console.error('Malformed JSON:', message.message);
-              //       return;
-              //     }
+//               // getMessage(messageId, reactionMessage.key.remoteJid, async (message) => {
+//               //   //console.log('Message:', message);
+//               //   if (message) {
+//               //     let messageContent;
+//               //     try {
+//               //       messageContent = JSON.parse(message.message);
+//               //     } catch (parseError) {
+//               //       console.error('Error parsing message content:', parseError);
+//               //       console.error('Malformed JSON:', message.message);
+//               //       return;
+//               //     }
         
-              //     const messageText = messageContent.extendedTextMessage?.text || messageContent.conversation;
+//               //     const messageText = messageContent.extendedTextMessage?.text || messageContent.conversation;
         
-              //     if (messageText) {
-              //       const ticketNumberMatch = messageText.match(/\*Ticket number:\* (\d+)/);
-              //       if (ticketNumberMatch) {
-              //         const ticketNumber = ticketNumberMatch[1];
-              //         console.log(`Extracted ticket number: ${ticketNumber}`);
+//               //     if (messageText) {
+//               //       const ticketNumberMatch = messageText.match(/\*Ticket number:\* (\d+)/);
+//               //       if (ticketNumberMatch) {
+//               //         const ticketNumber = ticketNumberMatch[1];
+//               //         console.log(`Extracted ticket number: ${ticketNumber}`);
         
-              //         try {
-              //           const workOrderResponse = await axios.get(`${base_url}requests/${ticketNumber}`, { headers, httpsAgent });
-              //           const workOrder = workOrderResponse.data.request;
-              //           const requesterMobile = workOrder.requester.mobile ? phoneNumberFormatter(workOrder.requester.mobile) : 'N/A';
-              //           let requesterName = workOrder.requester.name.replace('[MTI]', '').trim();
+//               //         try {
+//               //           const workOrderResponse = await axios.get(`${base_url}requests/${ticketNumber}`, { headers, httpsAgent });
+//               //           const workOrder = workOrderResponse.data.request;
+//               //           const requesterMobile = workOrder.requester.mobile ? phoneNumberFormatter(workOrder.requester.mobile) : 'N/A';
+//               //           let requesterName = workOrder.requester.name.replace('[MTI]', '').trim();
         
-              //           if (!message.reacted) {
-              //             await assignICTTechnician(ticketNumber, ictTechnician);
-              //             markMessageAsReacted(messageId, reactionMessage.key.remoteJid, reacterNumber);
+//               //           if (!message.reacted) {
+//               //             await assignICTTechnician(ticketNumber, ictTechnician);
+//               //             markMessageAsReacted(messageId, reactionMessage.key.remoteJid, reacterNumber);
         
-              //             // You may uncomment the following lines if needed for notifying the requester.
-              //             /*
-              //             const notifyNumber = requesterMobile !== 'N/A' ? requesterMobile : phoneNumberFormatter('085712612218');
-              //             const technicianName = technician ? technician.name : reacterNumber;
-              //             const notifyMessage = `Dear *${requesterName}*,\n\nYour ticket with number *${ticketNumber}* is now being handled by *${technicianName}*. Please wait while our technician reaches out to you.\n\n*To monitor your request, please see the link below:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${ticketNumber}&PORTALID=1`;
-              //             await sock.sendMessage(notifyNumber, { text: notifyMessage });
-              //             */
-              //           } else {
-              //             const existingTechnicianName = technician.name || "another technician";
-              //             const notifyReacter = `Sorry, this ticket *${ticketNumber}* has been handled by *${existingTechnicianName}*.`;
-              //             await sock.sendMessage(reactionMessage.key.remoteJid, { text: notifyReacter });
-              //           }
-              //         } catch (workOrderError) {
-              //           console.error('Error fetching work order details:', workOrderError);
-              //         }
-              //       } else {
-              //         console.error('Ticket number not found in message text:', messageText);
-              //       }
-              //     } else {
-              //       console.log('Message text not found or already reacted:', messageId);
-              //     }
-              //   } else {
-              //     console.error('Message not found in file store for message ID:', messageId);
-              //   }
-              // });
-            } catch (error) {
-              console.error('Error handling reaction:', error);
-            }
-          } else {
-            console.error('No reactions found in the reaction event.');
+//               //             // You may uncomment the following lines if needed for notifying the requester.
+//               //             /*
+//               //             const notifyNumber = requesterMobile !== 'N/A' ? requesterMobile : phoneNumberFormatter('085712612218');
+//               //             const technicianName = technician ? technician.name : reacterNumber;
+//               //             const notifyMessage = `Dear *${requesterName}*,\n\nYour ticket with number *${ticketNumber}* is now being handled by *${technicianName}*. Please wait while our technician reaches out to you.\n\n*To monitor your request, please see the link below:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${ticketNumber}&PORTALID=1`;
+//               //             await sock.sendMessage(notifyNumber, { text: notifyMessage });
+//               //             */
+//               //           } else {
+//               //             const existingTechnicianName = technician.name || "another technician";
+//               //             const notifyReacter = `Sorry, this ticket *${ticketNumber}* has been handled by *${existingTechnicianName}*.`;
+//               //             await sock.sendMessage(reactionMessage.key.remoteJid, { text: notifyReacter });
+//               //           }
+//               //         } catch (workOrderError) {
+//               //           console.error('Error fetching work order details:', workOrderError);
+//               //         }
+//               //       } else {
+//               //         console.error('Ticket number not found in message text:', messageText);
+//               //       }
+//               //     } else {
+//               //       console.log('Message text not found or already reacted:', messageId);
+//               //     }
+//               //   } else {
+//               //     console.error('Message not found in file store for message ID:', messageId);
+//               //   }
+//               // });
+//             } catch (error) {
+//               console.error('Error handling reaction:', error);
+//             }
+//           } else {
+//             console.error('No reactions found in the reaction event.');
+//           }
+//         });
+        
+
+//         console.log('Socket created, waiting for connection updates...');
+//             // Initialize sock in alarm.js
+//         initializeSock(sock);
+
+//         // Save alarms before the process exits
+//         process.on('exit', saveAlarms);
+//         process.on('SIGINT', saveAlarms);
+//         process.on('SIGTERM', saveAlarms);
+
+//   } 
+//   catch (error) {
+//         console.error('Error in startSock:', error);
+//   }
+// };
+
+const startSock = async () => {
+  try {
+    console.log('Fetching latest Baileys version…')
+    const { version } = await fetchLatestBaileysVersion()
+    console.log('Using Baileys version:', version)
+
+    console.log('Initializing auth state…')
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info')
+    console.log('Auth state initialized')
+
+    console.log('Creating WhatsApp socket…')
+    sock = makeWASocket({
+      version,
+      auth: state,
+      logger: Pino({ level: 'silent' }),
+      browser: Browsers.macOS('Desktop'),
+      syncFullHistory: true,
+      printQRInTerminal: false,
+      cachedGroupMetadata: jid => groupCache.get(jid),
+    })
+
+    bindHistory(sock)
+
+    sock.ev.process(async events => {
+      // — creds.update —
+      if (events['creds.update']) {
+        await saveCreds()
+      }
+
+      // — connection.update (open / close / QR) —
+      if (events['connection.update']) {
+        const { connection, lastDisconnect, qr } = events['connection.update']
+        console.log('connection.update:', connection, lastDisconnect, qr)
+
+        if (connection === 'close') {
+          const shouldReconnect =
+            lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+          currentStatus = 'Disconnected, reconnecting…'
+          isAuthenticated = false
+          currentQr = null
+          io.emit('message', currentStatus)
+
+          if (shouldReconnect) {
+            await sock.end()         // <— gracefully shut down old socket
+            return startSock()       // <— start fresh and exit this handler
           }
-        });
-        
+        }
 
-        console.log('Socket created, waiting for connection updates...');
-            // Initialize sock in alarm.js
-        initializeSock(sock);
+        if (connection === 'open') {
+          console.log('Connected to WhatsApp')
+          currentStatus = 'WhatsApp is ready!'
+          isAuthenticated = true
+          currentQr = null
+          io.emit('ready', currentStatus)
+          io.emit('message', currentStatus)
+          io.emit('authenticated', currentStatus)
 
-        // Save alarms before the process exits
-        process.on('exit', saveAlarms);
-        process.on('SIGINT', saveAlarms);
-        process.on('SIGTERM', saveAlarms);
+          await listGroups()
 
-  } 
-  catch (error) {
-        console.error('Error in startSock:', error);
+          const testNumber = phoneNumberFormatter('085712612218')
+          console.log('Testing sendMessage to', testNumber)
+          try {
+            const resp = await sock.sendMessage(testNumber, {
+              text: 'MTI Whatsapp API Started!'
+            })
+            console.log('Test message sent:', resp)
+          } catch (err) {
+            console.error('Error sending test message:', err)
+          }
+        }
+
+        if (qr && !isAuthenticated) {
+          console.log('QR received, generating DataURL…')
+          try {
+            const url = await qrcode.toDataURL(qr)
+            currentQr = url
+            io.emit('qr', url)
+            currentStatus = 'QR Code received, scan please!'
+            io.emit('message', currentStatus)
+          } catch (err) {
+            console.error('Error generating QR code:', err)
+          }
+        }
+      }
+
+      // — group cache updates —
+      if (events['groups.upsert']) {
+        for (const g of events['groups.upsert']) {
+          groupCache.set(g.id, g)
+        }
+      }
+      if (events['groups.update']) {
+        for (const u of events['groups.update']) {
+          const prev = groupCache.get(u.id) || {}
+          groupCache.set(u.id, { ...prev, ...u })
+        }
+      }
+      if (events['group-participants.update']) {
+        for (const p of events['group-participants.update']) {
+          groupCache.del(p.id)
+        }
+      }
+
+      // — incoming messages —
+      if (events['messages.upsert']) {
+        const up = events['messages.upsert']
+        if (Array.isArray(up.messages)) {
+          for (const msg of up.messages) {
+            // skip messages we sent ourselves
+            if (msg.key.fromMe) continue
+
+            if (!msg.message) continue
+
+            // unwrap ephemeral
+            if (msg.message.ephemeralMessage) {
+              msg.message =
+                msg.message.ephemeralMessage.message || msg.message
+            }
+
+            const body = extractMessageContent(msg)?.trim()
+
+            // persist "New request"
+            if (body && body.includes('New request')) {
+              storeMessage(
+                msg.key.id,
+                msg.key.remoteJid,
+                JSON.stringify(msg.message)
+              )
+            }
+
+            // delegate all message logic
+            if (msg.key.remoteJid) {
+              try {
+                await handleMessage(sock, msg)
+              } catch (e) {
+                console.error('Error in handleMessage:', e)
+              }
+            }
+          }
+        }
+      }
+
+      // — reactions —
+      if (events['messages.reaction']) {
+        for (const reaction of events['messages.reaction']) {
+          if (
+            !isReactionFromSpecificGroups(
+              reaction,
+              specificGroupIds
+            )
+          )
+            continue
+
+          const { id: messageId, remoteJid } = reaction.key
+          const participant =
+            reaction.reaction?.key?.participant || ''
+          const reacterNumber = phoneNumberFormatter(
+            participant.split('@')[0]
+          )
+
+          let ictTech = 'Not registered'
+          try {
+            const tech = getContactByPhone(reacterNumber)
+            if (tech) ictTech = tech.ict_name
+          } catch {}
+
+          getMessage(
+            messageId,
+            remoteJid,
+            async (err, stored) => {
+              if (err || !stored) return
+              let content
+              try {
+                content = JSON.parse(stored.message)
+              } catch {
+                return console.error(
+                  'Malformed stored message JSON'
+                )
+              }
+              const text =
+                content.extendedTextMessage?.text ||
+                content.conversation
+              const m = text?.match(
+                /\*Ticket number:\* (\d+)/
+              )
+              if (!m)
+                return console.error(
+                  'Ticket number not found'
+                )
+
+              const ticket = m[1]
+              try {
+                const { data } = await axios.get(
+                  `${base_url}requests/${ticket}`,
+                  { headers, httpsAgent }
+                )
+                if (!stored.reacted) {
+                  await assignICTTechnician(ticket, ictTech)
+                  markMessageAsReacted(
+                    messageId,
+                    remoteJid,
+                    reacterNumber
+                  )
+                } else {
+                  const prev = /* lookup original reactor */
+                  await sock.sendMessage(remoteJid, {
+                    text: `Sorry, ticket *${ticket}* sudah di-handle oleh *${prev}*.`
+                  })
+                }
+              } catch (e) {
+                console.error(
+                  'Error fetching work order:',
+                  e
+                )
+              }
+            }
+          )
+        }
+      }
+    })
+
+    console.log('Socket created; listening for events…')
+    initializeSock(sock)
+
+    // graceful shutdown
+    process.on('exit', saveAlarms)
+    process.on('SIGINT', saveAlarms)
+    process.on('SIGTERM', saveAlarms)
+  } catch (error) {
+    console.error('Error in startSock:', error)
   }
-};
+}
+
+
 
 console.log('Starting WhatsApp socket...');
 startSock();
