@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  whatsapp-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/usr/src/app
+      - whatsapp_node_modules:/usr/src/app/node_modules
+    environment:
+      NODE_ENV: development
+    ports:
+      - "8192:8192"
+      - "9229:9229"
+volumes:
+  whatsapp_node_modules:
