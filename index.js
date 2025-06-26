@@ -1672,106 +1672,106 @@ function parseBitLockerInfo(output) {
 }
 
 async function getBitLockerInfo(hostname) {
-  console.log(`Getting BitLocker info for hostname: ${hostname}`);
+  console.log(`Getting BitLocker info for ${hostname}`);
   let client;
 
   try {
-    // 1) Connect
     client = await getLdapClient();
-    console.log('LDAP client connected successfully');
-
+    console.log('LDAP client connected');
     const baseDN = process.env.LDAP_BASE_DN;
-    console.log(`Using Base DN: ${baseDN}`);
+    console.log('Using Base DN:', baseDN);
 
     const h = hostname.toUpperCase();
+    const compFilter = `(&(objectCategory=computer)(|(cn=${h})(sAMAccountName=${h}$)))`;
+    console.log('→ computer filter:', compFilter);
 
-    // Helper to run a search and return an array of entry objects
-    async function searchEntries(filter) {
-      console.log(`→ searching with filter: ${filter}`);
-      const results = [];
-      await new Promise((resolve, reject) => {
-        client.search(
-          baseDN,
-          { scope: 'sub', filter },
-          (err, res) => {
-            if (err) return reject(err);
-            res.on('searchEntry', e => results.push(e.object));
-            res.on('error', reject);
-            res.on('end', () => resolve());
-          }
-        );
-      });
-      console.log(`  • found ${results.length} entries`);
-      return results;
+    // 1) Locate the computer object
+    let compEntries = await search(baseDN, compFilter);
+    if (compEntries.length === 0) {
+      const wcFilter = `(&(objectCategory=computer)(cn=${h}*))`;
+      console.log('→ wildcard fallback filter:', wcFilter);
+      compEntries = await search(baseDN, wcFilter);
     }
+    console.log(' exact match returned', compEntries.length, 'entries');
 
-    // 2) First try: exact CN or sAMAccountName$
-    let computerEntries = await searchEntries(
-      `(&(objectCategory=computer)(|(cn=${h})(sAMAccountName=${h}$)))`
-    );
-
-    // 3) Fallback: wildcard CN (if nothing matched above)
-    if (computerEntries.length === 0) {
-      console.log('No exact match – trying wildcard CN...');
-      computerEntries = await searchEntries(
-        `(&(objectCategory=computer)(cn=${h}*))`
-      );
-    }
-
-    if (computerEntries.length === 0) {
+    if (compEntries.length === 0) {
       client.unbind();
-      console.error(`Computer "${hostname}" not found in AD.`);
-      return { success: false, error: `Computer "${hostname}" not found` };
+      return { success: false, error: `Computer "${hostname}" not found in AD` };
     }
 
-    // 4) Use the first DN found
-    const computerDN = computerEntries[0].dn;
-    console.log(`Found computer DN: ${computerDN}`);
+    const computerDN = compEntries[0].dn;
+    console.log('Found computer DN:', computerDN);
 
-    // 5) Now search under that DN for BitLocker recovery entries
-    const recoveryFilter = '(objectClass=msFVE-RecoveryInformation)';
-    console.log(`→ searching for recovery objects with: ${recoveryFilter}`);
-    const recoveryEntries = [];
-    await new Promise((resolve, reject) => {
+    // 2) One-level search for any child with a password attribute
+    const blEntries = await search(
+      computerDN,
+      '(msFVE-RecoveryPassword=*)',
+      ['msFVE-RecoveryPassword'],
+      'one'
+    );
+    console.log(' found', blEntries.length, 'BitLocker entries');
+    client.unbind();
+
+    if (blEntries.length === 0) {
+      return { success: false, error: 'No BitLocker recovery objects found' };
+    }
+
+    // 3) Map into partition/key list
+    const keys = blEntries.map(e => ({
+      partitionId: e.dn.split(',')[0].replace(/^CN=/, ''),
+      password:    e.password      // guaranteed to be set below
+    }));
+
+    return {
+      success: true,
+      data: { hostname, keys }
+    };
+
+  } catch (err) {
+    if (client) client.unbind();
+    console.error('Error in getBitLockerInfo:', err);
+    return { success: false, error: err.message };
+  }
+
+  /** Helper: LDAP search returning array of { dn, password } */
+  async function search(searchBase, filter, attrs = [], scope = 'sub') {
+    return new Promise((resolve, reject) => {
+      const results = [];
       client.search(
-        computerDN,
-        {
-          scope: 'sub',
-          filter: recoveryFilter,
-          attributes: ['msFVE-RecoveryPassword', 'whenCreated']
-        },
+        searchBase,
+        { scope, filter, attributes: attrs },
         (err, res) => {
           if (err) return reject(err);
-          res.on('searchEntry', e => recoveryEntries.push(e.object));
+          res.on('searchEntry', entry => {
+            const dnString = entry.dn.toString();    // convert LdapDn to string
+            const obj      = { dn: dnString };
+            for (const attr of entry.attributes) {
+              const name = attr.type.toLowerCase();
+              if (name === 'msfve-recoverypassword') {
+                // ALWAYS use .values, never .vals
+                obj.password = attr.values[0] || '';
+              }
+            }
+            console.log('  • entry:', obj.dn, '→ password:', obj.password ? '[OK]' : '[MISSING]');
+            results.push(obj);
+          });
           res.on('error', reject);
-          res.on('end', () => resolve());
+          res.on('end', () => resolve(results));
         }
       );
     });
-
-    client.unbind();
-
-    if (recoveryEntries.length === 0) {
-      console.error(`No BitLocker recovery objects under ${computerDN}`);
-      return { success: false, error: 'No recovery keys in AD' };
-    }
-
-    // 6) Sort by whenCreated and pick the newest
-    recoveryEntries.sort((a, b) =>
-      new Date(b.whenCreated) - new Date(a.whenCreated)
-    );
-    const newestPassword = recoveryEntries[0].msFVE-RecoveryPassword;
-    console.log('Returning newest recovery password');
-
-    return { success: true, data: newestPassword };
-
-  } catch (error) {
-    if (client) client.unbind();
-    console.error(`Error retrieving BitLocker info for ${hostname}:`, error);
-    return { success: false, error: error.message };
   }
 }
 
+
+
+const result = await getBitLockerInfo('mti-nb-177');
+if (result.success) {
+  const { hostname, password } = result.data;
+  console.log(`${hostname} → recovery key: ${password}`);
+} else {
+  console.error(`Error for ${result.hostname}: ${result.error}`);
+}
 
 
 
@@ -5312,24 +5312,68 @@ const handleChatBot = async (sock, from, text, isFromMe, hasDocument, hasImage, 
   }
 
   else if (text.startsWith('/getbitlocker')) {
-    const parts = text.split(/ |\u00A0|'/);
-    const hostname = parts[1];
-
-    // Call the getBitLockerInfo function
+    const hostname = text.split(/\s+/)[1];
+  
     getBitLockerInfo(hostname)
-      .then((result) => {
+      .then(result => {
         if (!result.success) {
-          sock.sendMessage(from, { text: `Error retrieving BitLocker info for ${hostname}: ${result.error}` });
-        } else {
-          const { hostname,passwordId, recoveryPassword } = result.data;
-          sock.sendMessage(from, { text: `Hostname: ${hostname}\nPassword ID: ${passwordId}\nRecovery Password: ${recoveryPassword}` });
+          return sock.sendMessage(from, {
+            text: `*Error:* ${result.error}`
+          });
         }
+  
+        const { hostname: host, keys } = result.data;
+        const lines = [`*Hostname:* ${host}`, ''];
+  
+        keys.forEach((k, idx) => {
+          // Extract timestamp portion from partitionId: "YYYY-MM-DDThh:mm:ss"
+          const match = k.partitionId.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+          let formattedDate = 'Invalid Date';
+          if (match) {
+            const [ , Y, M, D, h, m, s ] = match;
+            const dt = new Date(
+              +Y, +M - 1, +D,
+              +h, +m, +s
+            );
+            formattedDate = dt.toLocaleString('en-GB', {
+              timeZone: 'Asia/Jakarta',
+              day:    '2-digit',
+              month:  'short',
+              year:   'numeric',
+              hour:   '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            });
+          }
+  
+          // Extract GUID part
+          const guid = (k.partitionId.split('{')[1] || '').replace('}', '');
+  
+          lines.push(
+            `*Password ID ${idx+1}:* ${guid}`,
+            `*Date:*          ${formattedDate}`,
+            `*Recovery Key ${idx+1}:* ${k.password}`,
+            '' // blank line
+          );
+        });
+  
+        // Remove trailing blank line
+        if (lines[lines.length - 1] === '') lines.pop();
+  
+        const message = lines.join('\n');
+        sock.sendMessage(from, { text: message });
       })
-      .catch((error) => {
-        console.error(`Error retrieving BitLocker info: ${error.message}`);
-        sock.sendMessage(from, { text: `Error retrieving BitLocker info: ${error.message}` });
+      .catch(err => {
+        console.error('BitLocker lookup error:', err);
+        sock.sendMessage(from, {
+          text: `*Error retrieving BitLocker info:* ${err.message}`
+        });
       });
   }
+  
+  
+  
+
   
   //Find user in AD
   else if (text.startsWith('/finduser')) {
