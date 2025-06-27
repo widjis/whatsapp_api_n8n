@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: whatsapp_redis_dev
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    # no volumes by default—data is ephemeral in dev
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: whatsapp_redis_dev
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   # no volumes by default—data is ephemeral in dev
 
   whatsapp-api:
     build:
