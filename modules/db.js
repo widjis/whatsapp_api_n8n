@@ -3,7 +3,7 @@
 const sql = require('mssql');
 
 const DB_CONFIG = {
-  user: 'sa',
+  user: 'vault',
   password: 'Bl4ck3y34dm!n',
   server: '10.60.10.47',
   database: 'DataDBEnt',
