@@ -6182,13 +6182,27 @@ const startSock = async () => {
           try {
             const tech = getContactByPhone(reacterNumber)
             if (tech) ictTech = tech.ict_name
-          } catch {}
+            else console.warn(
+              `Technician not found for reacter number: ${reacterNumber}`
+            )
+          } catch {
+            console.error(
+              'Error fetching technician by phone:',
+              reacterNumber
+            )
+          }
 
           getMessage(
             messageId,
             remoteJid,
             async (err, stored) => {
-              if (err || !stored) return
+              if (err || !stored) {
+                console.error(
+                  'Error fetching message from store:',
+                  err || 'Message not found in Redis store'
+                )
+                return
+              }
               let content
               try {
                 content = JSON.parse(stored.message)
@@ -6222,10 +6236,23 @@ const startSock = async () => {
                     reacterNumber
                   )
                 } else {
-                  const prev = /* lookup original reactor */
-                  await sock.sendMessage(remoteJid, {
-                    text: `Sorry, ticket *${ticket}* sudah di-handle oleh *${prev}*.`
-                  })
+                  // const prev = /* lookup original reactor */
+                  // await sock.sendMessage(remoteJid, {
+                  //   text: `Sorry, ticket *${ticket}* sudah di-handle oleh *${prev}*.`
+                  // })
+                  //Find the reacter's number using the message ID and remote JID
+                  const originalReacterJid = await findReacterNumber(messageId, remoteJid)
+
+                  //Format the reacter's number to a phone number format
+                  const originalReacterNumber = phoneNumberFormatter(originalReacterJid.split('@')[0]);
+
+                  // Get the existing technician's name based on the reacter's phone number
+                  const existingTechnicianName = originalReacterNumber ? getContactByPhone(originalReacterNumber).ict_name : "another technician";
+
+                  // Notify the reacter that the ticket has already been handled by another technician
+                  const notifyReacter = `Sorry, ticket *${ticket}* has been handled by *${existingTechnicianName}*.`;
+                  // Send the notification message to the reacter
+                  await sock.sendMessage(remoteJid, { text: notifyReacter });
                 }
               } catch (e) {
                 console.error(
