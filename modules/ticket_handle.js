@@ -899,7 +899,7 @@ async function convertPDFToImages(pdfPath, outputDir) {
     }
 }
 
-const isTestEnvironment = true; // Set to true if the environment is test
+const isTestEnvironment = false; // Set to true if the environment is test
 const chatId = isTestEnvironment ? '120363123402010871@g.us' : '120363162455880145@g.us'; // Choose chatId based on environment
 async function sendGroupMessage(chatId, message, mentions = [], documentPath = null, imagePath = null) {
     const url = 'http://localhost:8192/send-group-message';
