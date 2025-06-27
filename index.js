@@ -6127,7 +6127,7 @@ const startSock = async () => {
         if (Array.isArray(up.messages)) {
           for (const msg of up.messages) {
             // skip messages we sent ourselves
-            if (msg.key.fromMe) continue
+            //if (msg.key.fromMe) continue
 
             if (!msg.message) continue
 
@@ -6141,6 +6141,7 @@ const startSock = async () => {
 
             // persist "New request"
             if (body && body.includes('New request')) {
+              console.log('Storing ticket message:', body)
               storeMessage(
                 msg.key.id,
                 msg.key.remoteJid,
@@ -6163,13 +6164,12 @@ const startSock = async () => {
       // — reactions —
       if (events['messages.reaction']) {
         for (const reaction of events['messages.reaction']) {
-          if (
-            !isReactionFromSpecificGroups(
-              reaction,
-              specificGroupIds
-            )
-          )
+          console.log('Reaction event:', reaction)
+          if (!isReactionFromSpecificGroups(reaction, specificGroupIds)) {
+            // skip this one, but keep processing any others
+            console.log('Reaction not from the specified groups. Ignoring…');
             continue
+          }
 
           const { id: messageId, remoteJid } = reaction.key
           const participant =
@@ -6241,7 +6241,18 @@ const startSock = async () => {
 
     console.log('Socket created; listening for events…')
     initializeSock(sock)
-
+    // catch any auth failure and restart
+    sock.ev.on('auth_failure', () => {
+      console.error('Auth failure—restarting socket…')
+      sock.end().catch(() => {})
+      startSock()
+    })
+    // catch a hard disconnect and restart
+    sock.ev.on('disconnected', (reason) => {
+      console.warn('Socket disconnected:', reason)
+      sock.destroy()
+      startSock()
+    })
     // graceful shutdown
     process.on('exit', saveAlarms)
     process.on('SIGINT', saveAlarms)
