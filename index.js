@@ -7135,6 +7135,7 @@ app.post('/webhook', checkIP, async (req, res) => {
 
       // Fetch request details
       const requestObj = await view_request(id);
+      console.log('Request Object:', JSON.stringify(requestObj, null, 2));
 
       // Route to appropriate handler
       if (status === 'new') {
@@ -7302,14 +7303,21 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
   //console.log('Updated Request Object Structure:', JSON.stringify(requestObj, null, 2));
 
   // console.log(`handleUpdatedRequest triggered for ticket ID: ${requestObj.id} at ${new Date().toISOString()}`);
-  const {
-    id: workorderid,
-    requester: { name: createdby, mobile = 'N/A' },
-    udf_fields: { udf_pick_601: ictTechnician, udf_pick_902: isUpdatedByBot } = {},
-    subject,
-    status: { name: ticketStatus },
-    priority: { name: priority },
-  } = requestObj;
+  
+  // Safely extract values with default fallbacks
+  const workorderid = requestObj?.id;
+  const createdby = requestObj?.requester?.name || 'Unknown Requester';
+  const mobile = requestObj?.requester?.mobile || 'N/A';
+  const ictTechnician = requestObj?.udf_fields?.udf_pick_601 || null;
+  const isUpdatedByBot = requestObj?.udf_fields?.udf_pick_902;
+  const subject = requestObj?.subject;
+  const ticketStatus = requestObj?.status?.name;
+  const priority = requestObj?.priority?.name;
+
+  if (!workorderid) {
+    console.error('Invalid request object: Missing workorder ID');
+    return;
+  }
 
   // if (isUpdatedByBot === 'True') {
   //   console.log(`Ignoring update triggered by the bot for ticket ID: ${workorderid}`);
@@ -7320,7 +7328,6 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
 
   let previousState;
   try {
-    // Fetch the previous state of the ticket
     previousState = await getPreviousTicketState(workorderid);
   } catch (error) {
     console.error(`Error fetching previous state for ticket ${workorderid}:`, error.message);
@@ -7345,8 +7352,8 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
       createdby,
       subject,
       mobile,
-      notify_requester_assign === 'true', // Notify requester if enabled
-      notify_technician === 'true' // Notify technician if enabled
+      notify_requester_assign === 'true',
+      notify_technician === 'true'
     );
     // Update Redis with the new technician state
     await storeCurrentTicketState(workorderid, { technician: ictTechnician });
@@ -7354,28 +7361,45 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
   else {
     console.log(`No technician change detected for ticket ${workorderid}. Skipping notifications.`);
   }
-  // Generate a summary of changes (includes technician, status, or priority updates)
-  const changes = generateChangeDetails({ ictTechnician, ticketStatus, priority });
+
+  // Generate a summary of changes
+  const changes = generateChangeDetails({ 
+    ictTechnician: ictTechnician || 'Unassigned',
+    ticketStatus: ticketStatus || 'Unknown',
+    priority: priority || 'Not Set'
+  });
 
   // Construct the general update notification message
-  const notificationMessage = `*Request update notification!*\n\n*Ticket No.:* ${workorderid}\n*Created by:* ${createdby}\n${changes}\n*Subject:* ${subject}\n\n*Link:* [View Request](https://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
+  const notificationMessage = `*Request update notification!*\n\n*Ticket No.:* ${workorderid}\n*Created by:* ${createdby}\n${changes}\n*Subject:* ${subject || 'No subject'}\n\n*Link:* [View Request](https://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
 
   // Notify the group/receiver
-  await sock.sendMessage(receiver, { text: notificationMessage });
+  try {
+    await sock.sendMessage(receiver, { text: notificationMessage });
+  } catch (error) {
+    console.error(`Error sending notification message to receiver: ${error.message}`);
+  }
 
   // Notify the requester for general updates if enabled
   if (notify_requester_update === 'true' && mobile !== 'N/A') {
-    const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject}\" (ID: ${workorderid}) has been updated. Here are the details:\n\n${changes}\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
-    await sock.sendMessage(phoneNumberFormatter(mobile), { text: requesterMessage });
+    const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject || 'No subject'}\" (ID: ${workorderid}) has been updated. Here are the details:\n\n${changes}\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
+    try {
+      await sock.sendMessage(phoneNumberFormatter(mobile), { text: requesterMessage });
+    } catch (error) {
+      console.error(`Error sending notification to requester: ${error.message}`);
+    }
   }
 
   // Store the updated state
-  await storeCurrentTicketState(workorderid, {
-    status: 'updated',
-    ticketStatus,
-    priority,
-    technician: ictTechnician,
-  });
+  try {
+    await storeCurrentTicketState(workorderid, {
+      status: 'updated',
+      ticketStatus: ticketStatus || 'Unknown',
+      priority: priority || 'Not Set',
+      technician: ictTechnician || 'Unassigned',
+    });
+  } catch (error) {
+    console.error(`Error storing ticket state: ${error.message}`);
+  }
 };
 
 const handleTechnicianChange = async (
