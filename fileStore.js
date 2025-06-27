@@ -1,13 +1,11 @@
-import Redis from 'ioredis';
-
+const Redis = require('ioredis');
 const redis = new Redis({
-  host: process.env.REDIS_HOST || '127.0.0.1',   // ← note the comma here
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379
-});
-
-redis.on('error', err => console.error('Redis error', err));
-console.log(`Connecting to Redis at ${redis.options.host}:${redis.options.port}`);
-
+    host: process.env.REDIS_HOST || '10.60.10.46',   // ← note the comma here
+    port: parseInt(process.env.REDIS_PORT, 10) || 6379
+  });
+  
+  redis.on('error', err => console.error('Redis error', err));
+  console.log(`Connecting to Redis at ${redis.options.host}:${redis.options.port}`);
 const loadStore = async () => {
     const keys = await redis.keys('*');
     const store = {};
