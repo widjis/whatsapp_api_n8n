@@ -12,8 +12,8 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     container_name: whatsapp_api_dev
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
     environment:
       NODE_ENV: development
       REDIS_HOST: 10.60.10.46
