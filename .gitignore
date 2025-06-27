@@ -9,6 +9,7 @@ lerna-debug.log*
 
 *.env
 .env
+baileys_store.json
 node_modules
 auth_info
 dist
