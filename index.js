@@ -59,14 +59,16 @@ import {
 console.log("Available functions:", Object.keys(ticketHandler));
 console.log("Create ticket function:", createTicket);
 
-//Initiate Redis
 import Redis from 'ioredis';
-//const redis = new Redis(); // Defaults to localhost:6379
+
 const redis = new Redis({
-  host: process.env.REDIS_HOST || '10.60.10.46'
+  host: process.env.REDIS_HOST || '127.0.0.1',   // ← note the comma here
   port: parseInt(process.env.REDIS_PORT, 10) || 6379
 });
+
 redis.on('error', err => console.error('Redis error', err));
+console.log(`Connecting to Redis at ${redis.options.host}:${redis.options.port}`);
+
 
 //ChatGPT
 import OpenAI from 'openai';
