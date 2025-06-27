@@ -1,12 +1,13 @@
 // /modules/db.js (CommonJS)
 
 const sql = require('mssql');
+require('dotenv').config();
 
 const DB_CONFIG = {
-  user: 'vault',
-  password: 'Bl4ck3y34dm!n',
-  server: '10.60.10.47',
-  database: 'DataDBEnt',
+  user: process.env.DB_USER || 'vault',
+  password: process.env.DB_PASSWORD || 'Bl4ck3y34dm!n',
+  server: process.env.DB_SERVER || '10.60.10.47',
+  database: process.env.DB_DATABASE || 'DataDBEnt',
   options: {
     encrypt: false,
     trustServerCertificate: true,
