@@ -6970,6 +6970,7 @@ async function truncateDescription(description, length = 200) {
       messages: [{ role: 'user', content: prompt }],
       model: 'gpt-4o',
       max_tokens: 100,
+      timeout: 5000 // 5 seconds timeout for OpenAI call
     });
     let summary = chatCompletion.choices[0].message.content.trim();
     // Ensure the summary does not exceed the length
@@ -6978,8 +6979,15 @@ async function truncateDescription(description, length = 200) {
     }
     return summary;
   } catch (err) {
-    // Fallback to simple truncation if OpenAI fails
-    return description.substring(0, length) + '...';
+    // Fallback plan if OpenAI fails (timeout, network, etc.)
+    console.error('OpenAI summarization failed, using fallback:', err.message || err);
+    // Try to find a sentence boundary before the limit
+    let truncated = description.substring(0, length);
+    const lastPeriod = truncated.lastIndexOf('.');
+    if (lastPeriod > 50) {
+      truncated = truncated.substring(0, lastPeriod + 1);
+    }
+    return truncated.trim() + '...';
   }
 }
 
