@@ -10,4 +10,4 @@ COPY . .
 EXPOSE 8192 9229
 
 # use npx so we don’t need global nodemon
-CMD ["npx", "nodemon", "--watch", ".", "--exec", "node index.js"]
+CMD ["npx", "nodemon", "--respawn", "--watch", ".", "--exec", "node index.js"]
