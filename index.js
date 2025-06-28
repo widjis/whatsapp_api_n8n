@@ -6981,6 +6981,7 @@ async function truncateDescription(description, length = 200) {
       console.log('[truncateDescription] OpenAI summary exceeds limit, truncating.');
       summary = summary.substring(0, length) + '...';
     }
+    console.log('[truncateDescription] Final summary:', summary);
     return summary;
   } catch (err) {
     // Fallback plan if OpenAI fails (timeout, network, etc.)
