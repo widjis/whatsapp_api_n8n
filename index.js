@@ -7317,8 +7317,8 @@ const handleNewRequest = async (payload, requestObj, receiver, receiver_type) =>
   console.log('Requester Information:', { createdby, email, mobile });
 
   const { notify_requester_update } = payload;
-  const truncatedDescription = truncateDescription(stripHtmlTagsAndDecode(description));
-
+  //const truncatedDescription = truncateDescription(stripHtmlTagsAndDecode(description));
+  const truncatedDescription = await truncateDescription(description, 200);
   console.log('Processing new request:', { workorderid, createdby });
 
   // Step 1: Determine the service category
