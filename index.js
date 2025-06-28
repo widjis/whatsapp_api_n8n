@@ -6973,7 +6973,6 @@ async function truncateDescription(description, length = 200) {
       messages: [{ role: 'user', content: prompt }],
       model: 'gpt-4o-mini',
       max_tokens: 100,
-      timeout: 5000 // 5 seconds timeout for OpenAI call
     });
     let summary = chatCompletion.choices[0].message.content.trim();
     console.log(`[truncateDescription] OpenAI summary received (length: ${summary.length}):`, summary);
