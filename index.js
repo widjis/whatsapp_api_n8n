@@ -276,28 +276,33 @@ const findGroupByName = async (name) => {
       return null;
   }
 
-  console.log('Fetching all groups...');
-  let groups;
-  try {
-      groups = Object.values(await sock.groupFetchAllParticipating());
-      groups.forEach(g => groupCache.set(g.id, g));
-  } catch (error) {
-      console.error('Error fetching groups:', error);
-      return null;
+  // Try to get groups from cache first to avoid hitting the rate limit
+  let groups = groupCache.keys().map(key => groupCache.get(key));
+
+  // If cache is empty, fetch groups from network and update the cache
+  if (groups.length === 0) {
+      console.log('Fetching all groups from WhatsApp...');
+      try {
+          groups = Object.values(await sock.groupFetchAllParticipating());
+          groups.forEach(g => groupCache.set(g.id, g));
+      } catch (error) {
+          console.error('Error fetching groups:', error);
+          return null;
+      }
   }
 
   if (groups.length === 0) {
       console.log('No groups found.');
       return null;
+  }
+
+  const group = groups.find(g => g.subject && g.subject.toLowerCase() === name.toLowerCase());
+  if (group) {
+      console.log(`Found group: id_group: ${group.id} || Nama Group: ${group.subject}`);
+      return group;
   } else {
-      const group = groups.find(group => group.subject.toLowerCase() === name.toLowerCase());
-      if (group) {
-          console.log(`Found group: id_group: ${group.id} || Nama Group: ${group.subject}`);
-          return group;
-      } else {
-          console.log(`No group found with name: ${name}`);
-          return null;
-      }
+      console.log(`No group found with name: ${name}`);
+      return null;
   }
 };
 
@@ -1086,6 +1091,8 @@ const connectRouterOS = async () => {
       host: process.env.MIKROTIK_HOST,
       user: process.env.MIKROTIK_USER,
       password: process.env.MIKROTIK_PASSWORD,
+      // allow timeout to be configured to avoid premature errors
+      timeout: parseInt(process.env.MIKROTIK_TIMEOUT, 10) || 20000,
     });
   
     try {
