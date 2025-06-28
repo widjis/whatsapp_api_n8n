@@ -6958,11 +6958,29 @@ function stripHtmlTagsAndDecode(str) {
 }
 
 // Function to truncate description
-function truncateDescription(description, length = 150) {
-  if (description.length > length) {
-      return description.substring(0, length) + '....';
+// Truncate or summarize the description to no more than 200 characters using OpenAI if needed
+async function truncateDescription(description, length = 200) {
+  if (description.length <= length) {
+    return description;
   }
-  return description;
+  try {
+    // Use OpenAI to summarize the description to fit within the length
+    const prompt = `Summarize the following text in no more than ${length} characters:\n\n${description}`;
+    const chatCompletion = await openai.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'gpt-4o',
+      max_tokens: 100,
+    });
+    let summary = chatCompletion.choices[0].message.content.trim();
+    // Ensure the summary does not exceed the length
+    if (summary.length > length) {
+      summary = summary.substring(0, length) + '...';
+    }
+    return summary;
+  } catch (err) {
+    // Fallback to simple truncation if OpenAI fails
+    return description.substring(0, length) + '...';
+  }
 }
 
 // Function to get the previous state of the ticket
