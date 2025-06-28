@@ -6960,6 +6960,18 @@ function stripHtmlTagsAndDecode(str) {
 // Function to truncate description
 // Truncate or summarize the description to no more than 200 characters using OpenAI if needed
 async function truncateDescription(description, length = 200) {
+  // If the description is a Promise (e.g., due to async misuse), resolve it
+  if (description && typeof description.then === 'function') {
+    try {
+      description = await description;
+    } catch (err) {
+      console.error('Failed to resolve description Promise:', err);
+      return '[Description unavailable]';
+    }
+  }
+  if (typeof description !== 'string') {
+    description = String(description ?? '');
+  }
   if (description.length <= length) {
     return description;
   }
@@ -6968,7 +6980,7 @@ async function truncateDescription(description, length = 200) {
     const prompt = `Summarize the following text in no more than ${length} characters:\n\n${description}`;
     const chatCompletion = await openai.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       max_tokens: 100,
       timeout: 5000 // 5 seconds timeout for OpenAI call
     });
