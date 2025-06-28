@@ -6960,24 +6960,15 @@ function stripHtmlTagsAndDecode(str) {
 // Function to truncate description
 // Truncate or summarize the description to no more than 200 characters using OpenAI if needed
 async function truncateDescription(description, length = 200) {
-  // If the description is a Promise (e.g., due to async misuse), resolve it
-  if (description && typeof description.then === 'function') {
-    try {
-      description = await description;
-    } catch (err) {
-      console.error('Failed to resolve description Promise:', err);
-      return '[Description unavailable]';
-    }
-  }
-  if (typeof description !== 'string') {
-    description = String(description ?? '');
-  }
+  console.log(`[truncateDescription] Called with description length: ${description.length}, limit: ${length}`);
   if (description.length <= length) {
+    console.log('[truncateDescription] Description is within limit, returning as is.');
     return description;
   }
   try {
     // Use OpenAI to summarize the description to fit within the length
-    const prompt = `Summarize the following text in no more than ${length} characters:\n\n${description}`;
+    const prompt = `Summarize the following request in no more than ${length} characters:\n\n${description}`;
+    console.log('[truncateDescription] Sending prompt to OpenAI:', prompt.slice(0, 200) + (prompt.length > 200 ? '...' : ''));
     const chatCompletion = await openai.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
       model: 'gpt-4o-mini',
@@ -6985,21 +6976,28 @@ async function truncateDescription(description, length = 200) {
       timeout: 5000 // 5 seconds timeout for OpenAI call
     });
     let summary = chatCompletion.choices[0].message.content.trim();
+    console.log(`[truncateDescription] OpenAI summary received (length: ${summary.length}):`, summary);
     // Ensure the summary does not exceed the length
     if (summary.length > length) {
+      console.log('[truncateDescription] OpenAI summary exceeds limit, truncating.');
       summary = summary.substring(0, length) + '...';
     }
     return summary;
   } catch (err) {
     // Fallback plan if OpenAI fails (timeout, network, etc.)
-    console.error('OpenAI summarization failed, using fallback:', err.message || err);
+    console.error('[truncateDescription] OpenAI summarization failed, using fallback:', err && err.message ? err.message : err);
     // Try to find a sentence boundary before the limit
     let truncated = description.substring(0, length);
     const lastPeriod = truncated.lastIndexOf('.');
     if (lastPeriod > 50) {
+      console.log('[truncateDescription] Fallback: Found period at', lastPeriod, ', truncating at sentence boundary.');
       truncated = truncated.substring(0, lastPeriod + 1);
+    } else {
+      console.log('[truncateDescription] Fallback: No suitable period found, truncating at character limit.');
     }
-    return truncated.trim() + '...';
+    const result = truncated.trim() + '...';
+    console.log('[truncateDescription] Fallback result:', result);
+    return result;
   }
 }
 
