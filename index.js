@@ -7351,7 +7351,7 @@ const handleNewRequest = async (payload, requestObj, receiver, receiver_type) =>
 
   // Step 4: Send notifications
   if (notify_requester_update === 'true' && mobile !== 'N/A' && mobile !== 'undefined') {
-      const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject}\" (ID: ${workorderid}) has been created. Please wait while our team processes your request.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
+      const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject}\" (ID: ${workorderid}) has been created. Please wait while our team processes your request.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
       console.log('Sending message to requester:', requesterMessage);
       if (mobile) {
           await sock.sendMessage(phoneNumberFormatter(mobile), { text: requesterMessage });
@@ -7451,7 +7451,7 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
   });
 
   // Construct the general update notification message
-  const notificationMessage = `*Request update notification!*\n\n*Ticket No.:* ${workorderid}\n*Created by:* ${createdby}\n${changes}\n*Subject:* ${subject || 'No subject'}\n\n*Link:* [View Request](https://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
+  const notificationMessage = `*Request update notification!*\n\n*Ticket No.:* ${workorderid}\n*Created by:* ${createdby}\n${changes}\n*Subject:* ${subject || 'No subject'}\n\n*Link:* [View Request](https://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
 
   // Notify the group/receiver
   try {
@@ -7462,7 +7462,7 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
 
   // Notify the requester for general updates if enabled
   if (notify_requester_update === 'true' && mobile !== 'N/A') {
-    const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject || 'No subject'}\" (ID: ${workorderid}) has been updated. Here are the details:\n\n${changes}\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
+    const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject || 'No subject'}\" (ID: ${workorderid}) has been updated. Here are the details:\n\n${changes}\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
     try {
       await sock.sendMessage(phoneNumberFormatter(mobile), { text: requesterMessage });
     } catch (error) {
@@ -7515,7 +7515,7 @@ const handleTechnicianChange = async (
         await assignTechnicianToRequest(workorderid, newTechnician.technician, groupName);
         // Store the current state of the ticket for the new technician
         await storeCurrentTicketState(workorderid, { technician: newTechnicianName });
-        const message = `Dear *${newTechnician.name}*,\n\nYou have been assigned a new ticket:\n\n*Ticket ID:* ${workorderid}\n*Subject:* ${subject}\n*Created by:* ${createdby}\n\nPlease address this ticket as soon as possible.\n\n*View details:* [View Request](https://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
+        const message = `Dear *${newTechnician.name}*,\n\nYou have been assigned a new ticket:\n\n*Ticket ID:* ${workorderid}\n*Subject:* ${subject}\n*Created by:* ${createdby}\n\nPlease address this ticket as soon as possible.\n\n*View details:* [View Request](https://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
         await sock.sendMessage(phoneNumberFormatter(newTechnician.phone), { text: message });
       }
     } catch (error) {
@@ -7528,9 +7528,9 @@ const handleTechnicianChange = async (
     const message =
       previousTechnician === 'Unassigned'
         ? // New assignment
-          `Dear *${createdby}*,\n\nYour ticket with subject: "${subject}" has been assigned to *${newTechnicianName}*. Please wait while our support team reaches out to you.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`
+          `Dear *${createdby}*,\n\nYour ticket with subject: "${subject}" has been assigned to *${newTechnicianName}*. Please wait while our support team reaches out to you.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`
         : // Reassignment
-          `Dear *${createdby}*,\n\nYour ticket with subject: "${subject}" has been reassigned from *${previousTechnician}* to *${newTechnicianName}*. Please wait while our support team reaches out to you.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
+          `Dear *${createdby}*,\n\nYour ticket with subject: "${subject}" has been reassigned from *${previousTechnician}* to *${newTechnicianName}*. Please wait while our support team reaches out to you.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
 
     await sock.sendMessage(phoneNumberFormatter(mobile), { text: message });
   }
@@ -7579,12 +7579,12 @@ const determineGroupByTechnician = (technicianRole) => {
 };
 
 const generateTechnicianNotification = (workorderid, subject, technicianName) => {
-    return `Dear *${technicianName}*,\n\nYou have been assigned a new ticket:\n\n*Ticket ID:* ${workorderid}\n*Subject:* ${subject}\n\nPlease address this ticket as soon as possible.\n\n*View details:* [View Request](https://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
+    return `Dear *${technicianName}*,\n\nYou have been assigned a new ticket:\n\n*Ticket ID:* ${workorderid}\n*Subject:* ${subject}\n\nPlease address this ticket as soon as possible.\n\n*View details:* [View Request](https://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
 };
 
 
 const generateNotificationMessage = (createdby, createdDate, email, workorderid, subject, description) => {
-  return `*New request from ${createdby} on ${createdDate}!*\n*Email:* ${email}\n*Ticket number:* ${workorderid}\n\n*Subject:* ${subject}\n*Description:* ${description}\n\n*For details, see the link below:*\nhttps://helpdesk.merdekabattery.com:8080/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
+  return `*New request from ${createdby} on ${createdDate}!*\n*Email:* ${email}\n*Ticket number:* ${workorderid}\n\n*Subject:* ${subject}\n*Description:* ${description}\n\n*For details, see the link below:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
 };
 
 const generateChangeDetails = ({ ictTechnician, ticketStatus, priority }) => {
