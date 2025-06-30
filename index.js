@@ -144,7 +144,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const allowedIPs = ['10.60.10.15', '10.60.10.46','10.60.10.59', '10.170.50.1', '10.60.20.188','10.60.10.48','10.60.20.126','::1']; // Add your allowed IP addresses here
+const allowedIPs = ['10.60.10.15', '10.60.10.46','172.24.0.1','10.60.10.59', '10.170.50.1', '10.60.20.188','10.60.10.48','10.60.20.126','::1']; // Add your allowed IP addresses here
 
 app.set('trust proxy', true); // Trust the first proxy
 
