@@ -84,7 +84,19 @@ This journal documents the development and current state of the WhatsApp API int
   - Asset lookup and details
   - Inventory integration
 
-##### **4. Security & Access Control**
+##### **4. WhatsApp LID (Linked ID) Resolution**
+- **Problem**: WhatsApp group reactions sometimes show `@lid` instead of phone numbers due to privacy features
+- **Solution**: Implemented comprehensive LID resolution system
+- **Features**:
+  - Automatic detection of LID participants in reactions
+  - Group metadata caching for participant mapping
+  - Fallback identification using cached LID-to-technician mappings
+  - Enhanced technician lookup supporting both phone numbers and LIDs
+  - Real-time group metadata updates for accurate resolution
+- **Files**: `utils/lidResolver.js`, updated reaction handlers in `index.js`
+- **Documentation**: `docs/lid-issue-analysis-and-solution.md`
+
+##### **5. Security & Access Control**
 - **IP Whitelisting**: Restricts API access to authorized IP addresses
 - **Phone Number Validation**: Allowed/restricted number lists for command access
 - **Role-based Permissions**: Different access levels for different users

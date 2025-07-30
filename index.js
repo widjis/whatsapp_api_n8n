@@ -134,8 +134,17 @@ import {
   getContactByPhone,
   getContactByEmail, 
   getContactByIctTechnicianName,
-  addContact
+  addContact,
+  phoneNumberFormatter
 } from './technicianContacts.js';
+import { 
+  isLinkedId, 
+  resolveParticipant, 
+  getContactByPhoneOrLid, 
+  cacheLidTechnician,
+  initializeGroupMetadataCache,
+  setupGroupMetadataCaching 
+} from './utils/lidResolver.js';
 import { type } from 'os';
 //----------------------------------------------------------------------
 
@@ -6181,22 +6190,43 @@ const startSock = async () => {
           const { id: messageId, remoteJid } = reaction.key
           const participant =
             reaction.reaction?.key?.participant || ''
-          const reacterNumber = phoneNumberFormatter(
-            participant.split('@')[0]
-          )
-
+          
+          // Enhanced participant resolution with LID support
+          let reacterNumber = ''
           let ictTech = 'Not registered'
+          
           try {
-            const tech = getContactByPhone(reacterNumber)
-            if (tech) ictTech = tech.ict_name
-            else console.warn(
-              `Technician not found for reacter number: ${reacterNumber}`
-            )
-          } catch {
-            console.error(
-              'Error fetching technician by phone:',
-              reacterNumber
-            )
+            if (isLinkedId(participant)) {
+              console.log(`Detected LID participant: ${participant}`)
+              // Try to resolve LID to phone number
+              const resolvedParticipant = await resolveParticipant(participant, remoteJid, sock)
+              if (resolvedParticipant && !isLinkedId(resolvedParticipant)) {
+                reacterNumber = phoneNumberFormatter(resolvedParticipant.split('@')[0])
+                console.log(`LID resolved to phone number: ${reacterNumber}`)
+              } else {
+                // Fallback: use LID as identifier
+                reacterNumber = participant
+                console.log(`Using LID as identifier: ${reacterNumber}`)
+              }
+            } else {
+              // Standard phone number processing
+              reacterNumber = phoneNumberFormatter(participant.split('@')[0])
+            }
+            
+            // Enhanced technician lookup with LID support
+            const tech = getContactByPhoneOrLid(reacterNumber, getContactByPhone)
+            if (tech) {
+              ictTech = tech.ict_name
+              // Cache LID-to-technician mapping for future use
+              if (isLinkedId(participant)) {
+                cacheLidTechnician(participant, tech)
+              }
+            } else {
+              console.warn(`Technician not found for identifier: ${reacterNumber}`)
+            }
+          } catch (error) {
+            console.error('Error in participant resolution:', error)
+            console.error('Participant:', participant)
           }
 
           getMessage(
@@ -6275,6 +6305,20 @@ const startSock = async () => {
 
     console.log('Socket created; listening for events…')
     initializeSock(sock)
+    
+    // Initialize LID resolution capabilities
+    try {
+      // Setup automatic group metadata caching
+      setupGroupMetadataCaching(sock)
+      
+      // Initialize cache for specific groups
+      if (specificGroupIds && specificGroupIds.length > 0) {
+        await initializeGroupMetadataCache(sock, specificGroupIds)
+        console.log('Group metadata cache initialized for LID resolution')
+      }
+    } catch (error) {
+      console.error('Error initializing LID resolution:', error)
+    }
     // catch any auth failure and restart
     sock.ev.on('auth_failure', () => {
       console.error('Auth failure—restarting socket…')
