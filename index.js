@@ -317,7 +317,7 @@ const findGroupByName = async (name) => {
 };
 
 const listGroups = async () => {
-    console.log('Fetching all groups...');
+    // console.log('Fetching all groups...');
     
     if (specificGroupIds.length === 0) {
         console.log('No specific groups configured.');
@@ -6267,13 +6267,13 @@ const startSock = async () => {
           await listGroups()
           
           // Display all group members with push names and WhatsApp IDs
-          console.log('\n=== DISPLAYING ALL GROUP MEMBERS ===');
+          // console.log('\n=== DISPLAYING ALL GROUP MEMBERS ===');
           try {
             await getAllGroupMembers();
           } catch (error) {
             console.error('Error fetching group members on startup:', error);
           }
-          console.log('=== END GROUP MEMBERS DISPLAY ===\n');
+          // console.log('=== END GROUP MEMBERS DISPLAY ===\n');
 
           const testNumber = phoneNumberFormatter('085712612218') + '@s.whatsapp.net'
           console.log('Testing sendMessage to', testNumber)
@@ -8405,9 +8405,9 @@ const getAllGroupMembers = async () => {
       .reduce((sum, group) => sum + group.memberCount, 0);
     const totalGroups = Object.keys(allMembers).length;
     
-    console.log('\n📊 SUMMARY:');
-    console.log(`   - Total Groups: ${totalGroups}`);
-    console.log(`   - Total Members: ${totalMembers}`);
+    // console.log('\n📊 SUMMARY:');
+    // console.log(`   - Total Groups: ${totalGroups}`);
+    // console.log(`   - Total Members: ${totalMembers}`);
     
     return allMembers;
     
