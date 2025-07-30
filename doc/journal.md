@@ -496,7 +496,24 @@ const getAllGroupMembers = async () => {
   - Maintains underlying functionality for fetching and caching group metadata
   - Structured return data with error handling
 
+### Database Connection Resilience Improvement
+- **Date**: Current session
+- **Issue**: Fixed "Connection is closed" error in `getUserPhotoFromDB()` function
+- **Root Cause**: Database connection pool was not handling connection timeouts and closures properly
+- **Solution**: Implemented robust connection management in `modules/db.js`
+- **Changes**:
+  - Added `initializePool()` function for connection management
+  - Implemented automatic reconnection logic
+  - Added connection state validation before queries
+  - Enhanced error handling with retry mechanism for closed connections
+  - Proper cleanup of disconnected pools
+- **Benefits**:
+  - Eliminates "Connection is closed" errors during photo fetching
+  - Automatic recovery from database connection issues
+  - Improved reliability for `/finduser` command with photo functionality
+  - Better error logging and debugging information
+
 ---
 
 *Journal maintained by: Development Team*  
-*Last updated: July 30, 2025*
+*Last updated: January 15, 2025*

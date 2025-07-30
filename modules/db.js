@@ -14,30 +14,91 @@ const DB_CONFIG = {
   },
 };
 
-const pool = new sql.ConnectionPool(DB_CONFIG);
-const poolConnect = pool.connect()
-  .then(() => console.log('✔️ DB pool connected'))
-  .catch(err => console.error('❌ DB pool connection failed:', err));
+let pool = new sql.ConnectionPool(DB_CONFIG);
+let poolConnect = null;
+
+// Function to initialize or reinitialize the connection pool
+async function initializePool() {
+  try {
+    if (pool && pool.connected) {
+      return pool;
+    }
+    
+    // Close existing pool if it exists but is not connected
+    if (pool && !pool.connected) {
+      try {
+        await pool.close();
+      } catch (closeErr) {
+        console.warn('Warning closing existing pool:', closeErr.message);
+      }
+    }
+    
+    // Create new pool
+    pool = new sql.ConnectionPool(DB_CONFIG);
+    await pool.connect();
+    console.log('✔️ DB pool connected');
+    return pool;
+  } catch (err) {
+    console.error('❌ DB pool connection failed:', err.message);
+    throw err;
+  }
+}
+
+// Initialize pool on module load
+poolConnect = initializePool().catch(err => {
+  console.error('❌ Initial DB pool connection failed:', err.message);
+});
 
 async function getUserPhotoFromDB(staffNo) {
-  await poolConnect;
-  const request = pool.request();
-  request.input('staffNo', sql.NVarChar, staffNo);
+  try {
+    // Ensure we have a valid connection
+    const activePool = await initializePool();
+    
+    const request = activePool.request();
+    request.input('staffNo', sql.NVarChar, staffNo);
 
-  const result = await request.query(`
-    SELECT PHOTO
-    FROM CardDB
-    WHERE StaffNo = @staffNo
-      AND Del_State = 'False'
-  `);
+    const result = await request.query(`
+      SELECT PHOTO
+      FROM CardDB
+      WHERE StaffNo = @staffNo
+        AND Del_State = 'False'
+    `);
 
-  if (!result.recordset.length || !result.recordset[0].PHOTO) {
-    return null;
+    if (!result.recordset.length || !result.recordset[0].PHOTO) {
+      return null;
+    }
+    return result.recordset[0].PHOTO;
+  } catch (err) {
+    // If connection is closed, try to reconnect once
+    if (err.message && err.message.includes('Connection is closed')) {
+      console.log('DB connection closed, attempting to reconnect...');
+      try {
+        const activePool = await initializePool();
+        const request = activePool.request();
+        request.input('staffNo', sql.NVarChar, staffNo);
+
+        const result = await request.query(`
+          SELECT PHOTO
+          FROM CardDB
+          WHERE StaffNo = @staffNo
+            AND Del_State = 'False'
+        `);
+
+        if (!result.recordset.length || !result.recordset[0].PHOTO) {
+          return null;
+        }
+        return result.recordset[0].PHOTO;
+      } catch (retryErr) {
+        console.error('DB reconnection failed:', retryErr.message);
+        throw retryErr;
+      }
+    }
+    throw err;
   }
-  return result.recordset[0].PHOTO;
 }
 
 module.exports = {
   DB_CONFIG,
   getUserPhotoFromDB,
+  initializePool,
 };
