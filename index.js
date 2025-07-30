@@ -8,6 +8,8 @@ import {
 
 
 import { bindHistory, loadHistory, saveHistory } from './utils/historyStore.js';
+import historyStore from './utils/historyStore.js';
+import lidToPhoneResolver from './utils/lidToPhoneResolver.js';
 import cors from 'cors';
 import { getUserPhotoFromDB } from './modules/db.js';
 import dotenv from 'dotenv';
@@ -194,6 +196,19 @@ const checkIP = async (req, res, next) => {
 const PORT = process.env.PORT || 8192;
 
 loadHistory();
+
+// Process existing baileys store data for LID mappings only if no mapping file exists
+if (!lidToPhoneResolver.mappingFileExists) {
+    console.log('🔍 No LID mappings file found. Processing existing baileys store for LID mappings...');
+    lidToPhoneResolver.processExistingStore(historyStore.store);
+    
+    // Note: Group metadata processing will be done after WhatsApp connection is established
+    // because it requires an active socket connection
+    console.log('📱 Group metadata processing will be performed after WhatsApp connection...');
+} else {
+    console.log('📂 LID mappings file exists. Skipping automatic processing of existing store and group metadata.');
+}
+
 // Save history to a file every 10 seconds
 setInterval(() => {
     saveHistory();
@@ -249,21 +264,7 @@ const restrictedPhoneNumbers = [
   // Add more allowed numbers as needed
 ];
 
-const phoneNumberFormatter = (number) => {
-    console.log(`Formatting phone number: ${number}`);
-    let formatted = number.replace(/\D/g, '');
-    console.log(`After removing non-digit characters: ${formatted}`);
-    if (formatted.startsWith('0')) {
-        formatted = '62' + formatted.substr(1);
-        console.log(`Adding country code and removing leading zero: ${formatted}`);
-    }
-    if (!formatted.endsWith('@c.us')) {
-        formatted += '@c.us';
-        console.log(`Adding WhatsApp domain: ${formatted}`);
-    }
-    console.log(`Formatted phone number: ${formatted}`);
-    return formatted;
-};
+// phoneNumberFormatter is now imported from technicianContacts.js
 
 const checkRegisteredNumber = async (number) => {
   if (!sock) {
@@ -317,15 +318,47 @@ const findGroupByName = async (name) => {
 
 const listGroups = async () => {
     console.log('Fetching all groups...');
-    let groups = Object.values(await sock.groupFetchAllParticipating());
-    groups.forEach(g => groupCache.set(g.id, g));
-    if (groups.length === 0) {
-        console.log('No groups found.');
-    } else {
-        groups.forEach(group => {
-            console.log(`id_group: ${group.id} || Nama Group: ${group.subject}`);
-        });
+    
+    if (specificGroupIds.length === 0) {
+        console.log('No specific groups configured.');
+        return [];
     }
+    
+    const groupResults = [];
+    
+    for (const groupJid of specificGroupIds) {
+        try {
+            const metadata = await sock.groupMetadata(groupJid);
+            groupCache.set(groupJid, metadata);
+            
+            console.log(`\nGroup Name: ${metadata.subject || 'Unknown'}`);
+            console.log(`Total Participants: ${metadata.participants ? metadata.participants.length : 0}`);
+            
+            if (metadata.participants) {
+                metadata.participants.forEach((p) => {
+                    console.log(`- ${p.id} ${p.name} (${p.admin ? p.admin : 'member'})`);
+                });
+            }
+            
+            groupResults.push({
+                id: groupJid,
+                subject: metadata.subject || 'Unknown',
+                participantCount: metadata.participants ? metadata.participants.length : 0,
+                participants: metadata.participants || [],
+                metadata: metadata
+            });
+            
+        } catch (error) {
+            console.error(`Failed to fetch metadata for group ${groupJid}:`, error.message);
+            groupResults.push({
+                id: groupJid,
+                error: error.message,
+                success: false
+            });
+        }
+    }
+    
+    return groupResults;
 };
 
 
@@ -5284,6 +5317,8 @@ const handleChatBot = async (sock, from, text, isFromMe, hasDocument, hasImage, 
               + `- /getups\n`
               + `- /getasset\n`
               + `- /getbitlocker\n`
+              + `\n*Group Commands:*\n`
+              + `- /groupmembers\n`
               + `\n*Helpdesk Commands:*\n`
               + `- /ticketreport\n` // Added ticket report command
               + `\n*To get detailed help for a specific command, use:*\n`
@@ -5559,6 +5594,136 @@ const handleChatBot = async (sock, from, text, isFromMe, hasDocument, hasImage, 
   
     // Send the result message back to the user
     await sock.sendMessage(from, { text: result.message });
+  }
+  else if (text.startsWith('/groupmembers')) {
+    try {
+      await sock.sendMessage(from, { text: '🔍 Gathering all group members from monitored groups...' });
+      
+      const allMembers = await getAllGroupMembers();
+      
+      // Create a formatted response
+      let response = '👥 *GROUP MEMBERS REPORT*\n\n';
+      
+      for (const [groupId, groupData] of Object.entries(allMembers)) {
+        if (groupData.error) {
+          response += `❌ *${groupData.groupName}*\n`;
+          response += `   Error: ${groupData.error}\n\n`;
+          continue;
+        }
+        
+        response += `📱 *${groupData.groupName}*\n`;
+        response += `   ID: ${groupId}\n`;
+        response += `   Members: ${groupData.memberCount}\n`;
+        
+        if (groupData.groupDescription) {
+          response += `   Description: ${groupData.groupDescription}\n`;
+        }
+        
+        // Count admins and regular members
+        const admins = groupData.members.filter(m => m.isAdmin || m.isSuperAdmin);
+        const regularMembers = groupData.members.filter(m => !m.isAdmin && !m.isSuperAdmin);
+        const lidMembers = groupData.members.filter(m => m.isLID);
+        
+        response += `   Admins: ${admins.length}\n`;
+        response += `   LID Members: ${lidMembers.length}\n\n`;
+        
+        // List admins first
+        if (admins.length > 0) {
+          response += '   👑 *Admins:*\n';
+          admins.forEach((member, index) => {
+            const phone = member.phoneNumber || member.id.split('@')[0];
+            const role = member.isSuperAdmin ? 'Super Admin' : 'Admin';
+            
+            // Use display name if available, otherwise use phone number
+            let displayInfo;
+            if (member.displayName) {
+              displayInfo = `${member.displayName} (${phone})`;
+            } else if (member.isLID) {
+              displayInfo = `LID: ${phone}`;
+            } else {
+              displayInfo = phone;
+            }
+            
+            response += `   ${index + 1}. ${displayInfo} (${role})\n`;
+          });
+          response += '\n';
+        }
+        
+        // List regular members (limit to first 10 to avoid message length issues)
+        if (regularMembers.length > 0) {
+          response += '   👤 *Members:*\n';
+          const membersToShow = regularMembers.slice(0, 10);
+          membersToShow.forEach((member, index) => {
+            const phone = member.phoneNumber || member.id.split('@')[0];
+            
+            // Use display name if available, otherwise use phone number or LID
+            let displayInfo;
+            if (member.displayName) {
+              displayInfo = `${member.displayName} (${phone})`;
+            } else if (member.isLID) {
+              displayInfo = `LID: ${phone}`;
+            } else {
+              displayInfo = phone;
+            }
+            
+            response += `   ${index + 1}. ${displayInfo}\n`;
+          });
+          
+          if (regularMembers.length > 10) {
+            response += `   ... and ${regularMembers.length - 10} more members\n`;
+          }
+          response += '\n';
+        }
+        
+        response += '---\n\n';
+      }
+      
+      // Add summary
+      const totalMembers = Object.values(allMembers)
+        .reduce((sum, group) => sum + group.memberCount, 0);
+      const totalGroups = Object.keys(allMembers).length;
+      
+      response += `📊 *SUMMARY*\n`;
+      response += `Total Groups: ${totalGroups}\n`;
+      response += `Total Members: ${totalMembers}\n\n`;
+      response += `Generated: ${new Date().toLocaleString()}`;
+      
+      // Split message if too long (WhatsApp has message length limits)
+      if (response.length > 4000) {
+        const chunks = [];
+        let currentChunk = '';
+        const lines = response.split('\n');
+        
+        for (const line of lines) {
+          if ((currentChunk + line + '\n').length > 4000) {
+            chunks.push(currentChunk);
+            currentChunk = line + '\n';
+          } else {
+            currentChunk += line + '\n';
+          }
+        }
+        
+        if (currentChunk) {
+          chunks.push(currentChunk);
+        }
+        
+        // Send chunks with delay
+        for (let i = 0; i < chunks.length; i++) {
+          await sock.sendMessage(from, { text: chunks[i] });
+          if (i < chunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+          }
+        }
+      } else {
+        await sock.sendMessage(from, { text: response });
+      }
+      
+    } catch (error) {
+      console.error('Error in /groupmembers command:', error);
+      await sock.sendMessage(from, { 
+        text: `❌ Error gathering group members: ${error.message}` 
+      });
+    }
   }
   
 
@@ -6056,11 +6221,19 @@ const startSock = async () => {
     })
 
     bindHistory(sock)
+    
+    // Initialize LID to Phone Resolver
+    lidToPhoneResolver.initialize(sock)
 
     sock.ev.process(async events => {
       // — creds.update —
       if (events['creds.update']) {
         await saveCreds()
+      }
+      
+      // — contacts.update —
+      if (events['contacts.update']) {
+        lidToPhoneResolver.processContactsUpdate(events['contacts.update'])
       }
 
       // — connection.update (open / close / QR) —
@@ -6092,8 +6265,17 @@ const startSock = async () => {
           io.emit('authenticated', currentStatus)
 
           await listGroups()
+          
+          // Display all group members with push names and WhatsApp IDs
+          console.log('\n=== DISPLAYING ALL GROUP MEMBERS ===');
+          try {
+            await getAllGroupMembers();
+          } catch (error) {
+            console.error('Error fetching group members on startup:', error);
+          }
+          console.log('=== END GROUP MEMBERS DISPLAY ===\n');
 
-          const testNumber = phoneNumberFormatter('085712612218')
+          const testNumber = phoneNumberFormatter('085712612218') + '@s.whatsapp.net'
           console.log('Testing sendMessage to', testNumber)
           try {
             const resp = await sock.sendMessage(testNumber, {
@@ -6112,7 +6294,7 @@ const startSock = async () => {
             currentQr = url
             io.emit('qr', url)
             currentStatus = 'QR Code received, scan please!'
-            io.emit('message', currentStatus)
+            // Don't emit as message - handled by 'qr' event in client
           } catch (err) {
             console.error('Error generating QR code:', err)
           }
@@ -6154,6 +6336,9 @@ const startSock = async () => {
             }
 
             const body = extractMessageContent(msg)?.trim()
+            
+            // Process message for LID to Phone mapping
+            lidToPhoneResolver.processMessage(msg)
 
             // persist "New request"
             if (body && body.includes('New request')) {
@@ -6198,15 +6383,16 @@ const startSock = async () => {
           try {
             if (isLinkedId(participant)) {
               console.log(`Detected LID participant: ${participant}`)
-              // Try to resolve LID to phone number
-              const resolvedParticipant = await resolveParticipant(participant, remoteJid, sock)
-              if (resolvedParticipant && !isLinkedId(resolvedParticipant)) {
-                reacterNumber = phoneNumberFormatter(resolvedParticipant.split('@')[0])
+              // Try to resolve LID to phone number using the main LID resolver
+              const resolvedPhone = lidToPhoneResolver.resolveJid(participant)
+              if (resolvedPhone) {
+                reacterNumber = phoneNumberFormatter(resolvedPhone)
                 console.log(`LID resolved to phone number: ${reacterNumber}`)
               } else {
-                // Fallback: use LID as identifier
-                reacterNumber = participant
-                console.log(`Using LID as identifier: ${reacterNumber}`)
+                // Fallback to the old resolver method
+                const resolvedParticipant = await resolveParticipant(participant, remoteJid, sock)
+                reacterNumber = resolvedParticipant
+                console.log(`LID resolved via fallback to: ${reacterNumber}`)
               }
             } else {
               // Standard phone number processing
@@ -6219,8 +6405,9 @@ const startSock = async () => {
               ictTech = tech.ict_name
               // Cache LID-to-technician mapping for future use
               if (isLinkedId(participant)) {
-                cacheLidTechnician(participant, tech)
+                cacheLidTechnician(reacterNumber, tech)
               }
+              console.log(`Technician found: ${ictTech} for identifier: ${reacterNumber}`)
             } else {
               console.warn(`Technician not found for identifier: ${reacterNumber}`)
             }
@@ -6315,6 +6502,12 @@ const startSock = async () => {
       if (specificGroupIds && specificGroupIds.length > 0) {
         await initializeGroupMetadataCache(sock, specificGroupIds)
         console.log('Group metadata cache initialized for LID resolution')
+        
+        // Process group metadata for contact extraction if no mapping file exists
+        if (!lidToPhoneResolver.mappingFileExists) {
+          console.log('📱 Processing group metadata for comprehensive contact extraction...');
+          await lidToPhoneResolver.processGroupMetadata(sock, specificGroupIds);
+        }
       }
     } catch (error) {
       console.error('Error initializing LID resolution:', error)
@@ -7398,11 +7591,11 @@ const handleNewRequest = async (payload, requestObj, receiver, receiver_type) =>
       const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject}\" (ID: ${workorderid}) has been created. Please wait while our team processes your request.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
       console.log('Sending message to requester:', requesterMessage);
       if (mobile) {
-          await sock.sendMessage(phoneNumberFormatter(mobile), { text: requesterMessage });
+          await sock.sendMessage(phoneNumberFormatter(mobile) + '@s.whatsapp.net', { text: requesterMessage });
       } else {
           const mobileNumber = await findUserMobileByEmail(email);
           if (mobileNumber) {
-              await sock.sendMessage(phoneNumberFormatter(mobileNumber), { text: requesterMessage });
+              await sock.sendMessage(phoneNumberFormatter(mobileNumber) + '@s.whatsapp.net', { text: requesterMessage });
           } else {
               console.log('Mobile number not found for the requester.');
           }
@@ -7508,7 +7701,7 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
   if (notify_requester_update === 'true' && mobile !== 'N/A') {
     const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject || 'No subject'}\" (ID: ${workorderid}) has been updated. Here are the details:\n\n${changes}\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
     try {
-      await sock.sendMessage(phoneNumberFormatter(mobile), { text: requesterMessage });
+      await sock.sendMessage(phoneNumberFormatter(mobile) + '@s.whatsapp.net', { text: requesterMessage });
     } catch (error) {
       console.error(`Error sending notification to requester: ${error.message}`);
     }
@@ -7543,7 +7736,7 @@ const handleTechnicianChange = async (
       const oldTechnician = await getContactByIctTechnicianName(previousTechnician);
       if (oldTechnician) {
         const message = `Dear *${oldTechnician.name}*,\n\nThe ticket with ID *${workorderid}* has been reassigned and is no longer under your responsibility.\n\n*Ticket Subject:* ${subject}`;
-        await sock.sendMessage(phoneNumberFormatter(oldTechnician.phone), { text: message });
+        await sock.sendMessage(phoneNumberFormatter(oldTechnician.phone) + '@s.whatsapp.net', { text: message });
       }
     } catch (error) {
       console.error(`Error notifying old technician: ${error.message}`);
@@ -7560,7 +7753,7 @@ const handleTechnicianChange = async (
         // Store the current state of the ticket for the new technician
         await storeCurrentTicketState(workorderid, { technician: newTechnicianName });
         const message = `Dear *${newTechnician.name}*,\n\nYou have been assigned a new ticket:\n\n*Ticket ID:* ${workorderid}\n*Subject:* ${subject}\n*Created by:* ${createdby}\n\nPlease address this ticket as soon as possible.\n\n*View details:* [View Request](https://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
-        await sock.sendMessage(phoneNumberFormatter(newTechnician.phone), { text: message });
+        await sock.sendMessage(phoneNumberFormatter(newTechnician.phone) + '@s.whatsapp.net', { text: message });
       }
     } catch (error) {
       console.error(`Error notifying new technician: ${error.message}`);
@@ -7576,7 +7769,7 @@ const handleTechnicianChange = async (
         : // Reassignment
           `Dear *${createdby}*,\n\nYour ticket with subject: "${subject}" has been reassigned from *${previousTechnician}* to *${newTechnicianName}*. Please wait while our support team reaches out to you.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
 
-    await sock.sendMessage(phoneNumberFormatter(mobile), { text: message });
+    await sock.sendMessage(phoneNumberFormatter(mobile) + '@s.whatsapp.net', { text: message });
   }
 };
 
@@ -8077,6 +8270,278 @@ process.on('SIGTERM', handleExit);
 // app.listen(PORT, () => {
 //     console.log(`Server running on port ${PORT}`);
 // });
+
+/**
+ * Gather all members from monitored WhatsApp groups
+ * @returns {Promise<Object>} Object containing group members organized by group
+ */
+const getAllGroupMembers = async () => {
+  try {
+    console.log('Gathering all group members from monitored groups...');
+    const allMembers = {};
+    
+    for (const groupId of specificGroupIds) {
+      try {
+        console.log(`Fetching members for group: ${groupId}`);
+        
+        // Get group metadata which includes participants
+        const metadata = await sock.groupMetadata(groupId);
+        
+        if (metadata && metadata.participants) {
+          allMembers[groupId] = {
+            groupName: metadata.subject || 'Unknown Group',
+            groupDescription: metadata.desc || '',
+            memberCount: metadata.participants.length,
+            members: await Promise.all(metadata.participants.map(async (participant) => {
+              const phoneNumber = participant.id.includes('@c.us') ? 
+                participant.id.split('@')[0] : null;
+              const isLID = participant.id.includes('@lid');
+              
+              // Try to get name from technician contacts
+              let displayName = null;
+              let resolvedPhone = phoneNumber;
+              
+              if (phoneNumber) {
+                // Regular phone number
+                const contact = getContactByPhone(phoneNumber);
+                displayName = contact ? contact.name : null;
+              } else if (isLID) {
+                // Try to resolve LID using the proper resolver
+                try {
+                  const resolvedParticipant = await resolveParticipant(participant.id, groupId, sock);
+                  if (resolvedParticipant) {
+                    resolvedPhone = resolvedParticipant;
+                    const contact = getContactByPhone(resolvedPhone);
+                    if (contact) {
+                      displayName = contact.name;
+                      // Cache the LID-to-technician mapping
+                      cacheLidTechnician(participant.id.split('@')[0], contact);
+                    }
+                  }
+                } catch (error) {
+                  console.warn(`Failed to resolve LID ${participant.id}:`, error.message);
+                }
+              }
+              
+              return {
+                id: participant.id,
+                phoneNumber: resolvedPhone,
+                displayName: displayName,
+                isLID: isLID,
+                isAdmin: participant.admin === 'admin',
+                isSuperAdmin: participant.admin === 'superadmin',
+                joinedAt: participant.joinedAt || null
+              };
+            }))
+          };
+          
+          console.log(`✅ Group: ${metadata.subject}`);
+          console.log(`   - ID: ${groupId}`);
+          console.log(`   - Members: ${metadata.participants.length}`);
+          console.log(`   - Admins: ${metadata.participants.filter(p => p.admin).length}`);
+          
+          // Log member details
+          for (let index = 0; index < metadata.participants.length; index++) {
+            const participant = metadata.participants[index];
+            const isLID = participant.id.includes('@lid');
+            const adminStatus = participant.admin ? ` (${participant.admin})` : '';
+            
+            let displayInfo;
+            let phoneNumber;
+            
+            if (participant.id.includes('@c.us')) {
+              // Regular phone number
+              phoneNumber = participant.id.split('@')[0];
+              const contact = getContactByPhone(phoneNumber);
+              displayInfo = contact ? `${contact.name} (${phoneNumber})` : phoneNumber;
+            } else if (isLID) {
+               // Try to resolve LID
+               try {
+                 const resolvedParticipant = await resolveParticipant(participant.id, groupId, sock);
+                 if (resolvedParticipant) {
+                   const contact = getContactByPhone(resolvedParticipant);
+                   if (contact) {
+                     displayInfo = `${contact.name} (${resolvedParticipant})`;
+                   } else {
+                     displayInfo = resolvedParticipant;
+                   }
+                 } else {
+                   displayInfo = `LID: ${participant.id.split('@')[0]}`;
+                 }
+               } catch (error) {
+                 displayInfo = `LID: ${participant.id.split('@')[0]}`;
+               }
+             } else {
+               displayInfo = participant.id.split('@')[0];
+             }
+             
+             console.log(`   ${index + 1}. ${displayInfo}${adminStatus}`);
+           }
+          
+        } else {
+          console.warn(`⚠️  No participants found for group: ${groupId}`);
+          allMembers[groupId] = {
+            groupName: 'Unknown Group',
+            groupDescription: '',
+            memberCount: 0,
+            members: []
+          };
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error fetching members for group ${groupId}:`, error.message);
+        allMembers[groupId] = {
+          groupName: 'Error fetching group',
+          groupDescription: '',
+          memberCount: 0,
+          members: [],
+          error: error.message
+        };
+      }
+    }
+    
+    // Summary
+    const totalMembers = Object.values(allMembers)
+      .reduce((sum, group) => sum + group.memberCount, 0);
+    const totalGroups = Object.keys(allMembers).length;
+    
+    console.log('\n📊 SUMMARY:');
+    console.log(`   - Total Groups: ${totalGroups}`);
+    console.log(`   - Total Members: ${totalMembers}`);
+    
+    return allMembers;
+    
+  } catch (error) {
+    console.error('❌ Error gathering group members:', error);
+    throw error;
+  }
+};
+
+// Add API endpoint to get group members
+app.get('/api/group-members', async (req, res) => {
+  try {
+    if (!sock) {
+      return res.status(503).json({ 
+        error: 'WhatsApp not connected',
+        message: 'Please wait for WhatsApp to connect before fetching group members'
+      });
+    }
+    
+    const members = await getAllGroupMembers();
+    res.json({
+      success: true,
+      data: members,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error in /api/group-members endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// LID to Phone Resolver API endpoints
+app.get('/api/lid-resolver/resolve/:jid', (req, res) => {
+  try {
+    const { jid } = req.params;
+    const resolvedPhone = lidToPhoneResolver.resolveJid(jid);
+    
+    res.json({
+      success: true,
+      jid: jid,
+      resolvedPhone: resolvedPhone,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/lid-resolver/stats', (req, res) => {
+  try {
+    const stats = lidToPhoneResolver.getStats();
+    
+    res.json({
+      success: true,
+      stats: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/lid-resolver/mappings', (req, res) => {
+  try {
+    const { pushName } = req.query;
+    
+    if (pushName) {
+      const jids = lidToPhoneResolver.getJidsForPushName(pushName);
+      res.json({
+        success: true,
+        pushName: pushName,
+        jids: jids,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      // Return all mappings (be careful with large datasets)
+      const stats = lidToPhoneResolver.getStats();
+      res.json({
+        success: true,
+        message: 'Use ?pushName=<name> to get specific mappings',
+        stats: stats,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.post('/api/lid-resolver/force-mapping', (req, res) => {
+  try {
+    const { lidJid, phoneJid } = req.body;
+    
+    if (!lidJid || !phoneJid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both lidJid and phoneJid are required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    lidToPhoneResolver.forceMapping(lidJid, phoneJid);
+    
+    res.json({
+      success: true,
+      message: 'Mapping forced successfully',
+      lidJid: lidJid,
+      phoneJid: phoneJid,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

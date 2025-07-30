@@ -6,7 +6,8 @@
  */
 
 import NodeCache from 'node-cache';
-import { phoneNumberFormatter } from '../technicianContacts.js';
+import technicianContactsPkg from '../technicianContacts.js';
+const { phoneNumberFormatter } = technicianContactsPkg;
 
 // Cache for group metadata and participant mappings
 const groupMetadataCache = new NodeCache({ stdTTL: 300 }); // 5 minutes TTL

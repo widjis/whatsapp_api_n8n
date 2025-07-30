@@ -62,5 +62,6 @@ module.exports = {
     getContactByPhone,
     getContactByEmail,
     getContactByIctTechnicianName,
-    addContact
+    addContact,
+    phoneNumberFormatter
 };

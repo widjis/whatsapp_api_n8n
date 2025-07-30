@@ -9,6 +9,7 @@ lerna-debug.log*
 
 *.env
 .env
+lid_phone_mappings.json
 baileys_store.json
 node_modules
 auth_info

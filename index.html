@@ -3,84 +3,296 @@
 <head>
   <title>MTI WhatsApp API</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f4f4f4;
     }
+    
     #app {
-      text-align: center;
       background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      padding: 32px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
     }
+    
+    #app::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #25D366, #128C7E);
+    }
+    
+    .logo {
+      width: 100%;
+      max-width: 280px;
+      height: auto;
+      margin-bottom: 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
     h1 {
-      margin-bottom: 20px;
+      color: #1a1a1a;
+      font-weight: 500;
+      font-size: 28px;
+      margin: 0 0 32px 0;
+      letter-spacing: -0.5px;
     }
+    
+    .status-container {
+      margin-bottom: 24px;
+    }
+    
+    #status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 24px;
+      font-weight: 500;
+      font-size: 14px;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+      min-height: 44px;
+      justify-content: center;
+    }
+    
+    .status-connecting {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    
+    .status-qr {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    .status-ready {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .status-icon {
+      font-size: 18px;
+    }
+    
     #messages {
       list-style: none;
       padding: 0;
-      margin-bottom: 20px;
+      margin: 0 0 24px 0;
+      max-height: 200px;
+      overflow-y: auto;
     }
+    
     #messages li {
-      padding: 8px;
-      margin-bottom: 10px;
-      background: #efefef;
-      border-radius: 4px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border-left: 4px solid #25D366;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.4;
     }
+    
     #qrcode-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 10px 0;
+      margin: 24px 0;
+      transition: all 0.3s ease;
     }
+    
     #qrcode {
-      display: none; /* Show when QR code is received */
-      width: 250px;  /* Adjust the width to make the QR code smaller */
-      height: 250px; /* Adjust the height to make the QR code smaller */
-      border: 1px solid #efefef;
-      border-radius: 4px;
+      display: none;
+      width: 280px;
+      height: 280px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      border: 2px solid #e9ecef;
+      transition: all 0.3s ease;
     }
-    #status {
-      padding: 8px;
-      background: #efefef;
-      border-radius: 4px;
-      margin-bottom: 20px;
+    
+    #qrcode:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
     }
+    
     #closeNotification {
-      display: none; /* Show when WhatsApp is ready */
-      margin-top: 20px;
+      display: none;
+      margin-top: 24px;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      color: white;
+      border-radius: 12px;
+      font-weight: 500;
       font-size: 16px;
-      color: green;
+      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+      animation: slideIn 0.5s ease;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 480px) {
+      body {
+        padding: 16px;
+      }
+      
+      #app {
+        padding: 24px 20px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      #qrcode {
+        width: 240px;
+        height: 240px;
+      }
+      
+      .logo {
+        max-width: 240px;
+      }
+    }
+    
+    /* Loading animation */
+    .loading-dots {
+      display: inline-block;
+    }
+    
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+    
+    @keyframes dots {
+      0%, 20% {
+        content: '';
+      }
+      40% {
+        content: '.';
+      }
+      60% {
+        content: '..';
+      }
+      80%, 100% {
+        content: '...';
+      }
     }
   </style>
 </head>
 <body>
-
   <div id="app">
-    <img src="https://img2.lokercepat.id/files/2024-03-26/pt-merdeka-tsingshan-indonesia-279.jpg" alt="Logo" style="width:100%;max-width:300px;margin-bottom:20px;">
+    <img src="https://img2.lokercepat.id/files/2024-03-26/pt-merdeka-tsingshan-indonesia-279.jpg" alt="MTI Logo" class="logo">
     <h1>MTI WhatsApp API</h1>
-    <div id="status">Connecting...</div>
-    <ul id="messages"></ul>
-    <div id="qrcode-container">
-      <img id="qrcode" src="" alt="QR Code">
+    
+    <div class="status-container">
+      <div id="status" class="status-connecting">
+        <span class="material-icons status-icon">sync</span>
+        <span class="status-text">Connecting<span class="loading-dots"></span></span>
+      </div>
     </div>
-    <div id="closeNotification">You can close the browser now!</div>
+    
+    <ul id="messages"></ul>
+    
+    <div id="qrcode-container">
+      <img id="qrcode" src="" alt="WhatsApp QR Code">
+    </div>
+    
+    <div id="closeNotification">
+      <span class="material-icons" style="vertical-align: middle; margin-right: 8px;">check_circle</span>
+      WhatsApp is ready! You can close this browser tab.
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
   <script>
     var socket = io();
+    var statusElement = document.getElementById('status');
+    var statusTextElement = document.querySelector('.status-text');
+    var statusIconElement = document.querySelector('.status-icon');
+
+    // Enhanced status update function
+    function updateStatus(message, type = 'connecting', icon = 'sync') {
+      if (!statusElement || !statusTextElement || !statusIconElement) return;
+      
+      // Remove all status classes
+      statusElement.className = statusElement.className.replace(/status-\w+/g, '');
+      
+      // Add new status class
+      statusElement.classList.add(`status-${type}`);
+      
+      // Update icon
+      statusIconElement.textContent = icon;
+      
+      // Update text without creating new lines
+      statusTextElement.innerHTML = message;
+      
+      // Add pulse animation for certain states
+      if (type === 'connecting' || type === 'qr') {
+        statusElement.classList.add('pulse');
+      } else {
+        statusElement.classList.remove('pulse');
+      }
+    }
 
     socket.on('connect', function() {
       console.log('Connected to server');
-      updateStatus('Connected to server');
+      updateStatus('Connected to server', 'connecting', 'wifi');
     });
 
     function renderFormattedMessage(text) {
@@ -98,47 +310,86 @@
         const li = document.createElement('li');
         li.innerHTML = renderFormattedMessage(msg);
         messages.appendChild(li);
-        updateStatus('New message received');
+        
+        // Auto-scroll to latest message
+        messages.scrollTop = messages.scrollHeight;
+        updateStatus('New message received', 'ready', 'message');
       }
     });
 
     socket.on('qr', function(src) {
       console.log('QR code received:', src);
       var img = document.getElementById('qrcode');
-      img.src = src;
-      img.style.display = 'block';
-      updateStatus('QR Code received, scan please!');
+      if (img) {
+        img.src = src;
+        img.style.display = 'block';
+        
+        // Add fade-in animation
+        img.style.opacity = '0';
+        setTimeout(() => {
+          img.style.opacity = '1';
+        }, 100);
+      }
+      updateStatus('Scan QR Code with WhatsApp', 'qr', 'qr_code_scanner');
     });
 
     socket.on('ready', function(msg) {
       console.log('WhatsApp is ready:', msg);
       var img = document.getElementById('qrcode');
-      img.style.display = 'none';
-      updateStatus(msg);
+      if (img) {
+        img.style.display = 'none';
+      }
+      
+      // Clear any QR-related messages from the list
+      clearQRMessages();
+      
+      updateStatus('WhatsApp Connected Successfully!', 'ready', 'check_circle');
       showCloseNotification();
     });
+    
+    function clearQRMessages() {
+      const messages = document.getElementById('messages');
+      if (messages) {
+        const messageItems = messages.querySelectorAll('li');
+        messageItems.forEach(item => {
+          if (item.textContent.includes('QR Code received') || 
+              item.textContent.includes('scan please')) {
+            item.remove();
+          }
+        });
+      }
+    }
 
     socket.on('authenticated', function(msg) {
       console.log('WhatsApp is authenticated:', msg);
       var img = document.getElementById('qrcode');
-      img.style.display = 'none';
-      updateStatus(msg);
+      if (img) {
+        img.style.display = 'none';
+      }
+      updateStatus('Authentication Successful', 'ready', 'verified_user');
     });
 
     socket.on('disconnect', function() {
       console.log('Disconnected from server');
-      updateStatus('Disconnected from server');
+      updateStatus('Connection Lost', 'error', 'wifi_off');
     });
 
-    function updateStatus(msg) {
-      var statusDiv = document.getElementById('status');
-      statusDiv.textContent = msg;
-    }
+    socket.on('error', function(error) {
+      console.error('Socket error:', error);
+      updateStatus('Connection Error', 'error', 'error');
+    });
 
     function showCloseNotification() {
       var closeNotification = document.getElementById('closeNotification');
-      closeNotification.style.display = 'block';
+      if (closeNotification) {
+        closeNotification.style.display = 'block';
+      }
     }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      updateStatus('Initializing<span class="loading-dots"></span>', 'connecting', 'sync');
+    });
   </script>
 
 </body>
