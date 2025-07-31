@@ -385,49 +385,57 @@ export const scanBaileysStore = () => {
     
     // Scan messages for contact information
     if (store.messages) {
-      Object.values(store.messages).forEach(chatMessages => {
-        if (Array.isArray(chatMessages)) {
-          chatMessages.forEach(msg => {
-            if (msg && msg.key) {
-              const { remoteJid, participant, fromMe } = msg.key
-              const pushName = msg.pushName || msg.verifiedBizName || msg.notify || null
-              
-              // Skip our own messages
-              if (fromMe) return
-              
-              // Process group messages
-              if (remoteJid && remoteJid.endsWith('@g.us') && participant) {
-                const participantJid = participant.split('@')[0]
-                
-                // Store pushName mapping for both LIDs and regular phone numbers
-                if (pushName && pushName.trim()) {
-                  storePushNameMapping(participant, pushName.trim())
-                }
-                
-                // Only process LIDs (non-numeric JIDs)
-                if (!/^\d+$/.test(participantJid)) {
-                  console.log(`Found LID in stored group message: ${participantJid} (${pushName || 'Unknown'})`)
-                  mappingsFound++
-                }
-              }
-              
-              // Process direct messages
-              if (remoteJid && !remoteJid.endsWith('@g.us')) {
-                const senderJid = remoteJid.split('@')[0]
-                
-                // Store pushName mapping for both LIDs and regular phone numbers
-                if (pushName && pushName.trim()) {
-                  storePushNameMapping(remoteJid, pushName.trim())
-                }
-                
-                // Only process LIDs (non-numeric JIDs)
-                if (!/^\d+$/.test(senderJid)) {
-                  console.log(`Found LID in stored direct message: ${senderJid} (${pushName || 'Unknown'})`)
-                  mappingsFound++
-                }
-              }
+      Object.values(store.messages).forEach(msg => {
+        if (msg && msg.key) {
+          const { remoteJid, participant, fromMe } = msg.key
+          const pushName = msg.pushName || msg.verifiedBizName || msg.notify || null
+          
+          // Skip our own messages
+          if (fromMe) return
+          
+          // Process group messages
+          if (remoteJid && remoteJid.endsWith('@g.us') && participant) {
+            const participantJid = participant.split('@')[0]
+            
+            // Store pushName mapping for both LIDs and regular phone numbers
+            if (pushName && pushName.trim()) {
+              storePushNameMapping(participant, pushName.trim())
             }
-          })
+            
+            // Only process LIDs (non-numeric JIDs)
+            if (!/^\d+$/.test(participantJid)) {
+              console.log(`🔍 Found LID in stored group message: ${participantJid} (${pushName || 'Unknown'})`)
+              
+              // Attempt pushName mapping
+              if (pushName && pushName.trim()) {
+                attemptPushNameMapping(participant, pushName.trim())
+              }
+              
+              mappingsFound++
+            }
+          }
+          
+          // Process direct messages
+          if (remoteJid && !remoteJid.endsWith('@g.us')) {
+            const senderJid = remoteJid.split('@')[0]
+            
+            // Store pushName mapping for both LIDs and regular phone numbers
+            if (pushName && pushName.trim()) {
+              storePushNameMapping(remoteJid, pushName.trim())
+            }
+            
+            // Only process LIDs (non-numeric JIDs)
+            if (!/^\d+$/.test(senderJid)) {
+              console.log(`🔍 Found LID in stored direct message: ${senderJid} (${pushName || 'Unknown'})`)
+              
+              // Attempt pushName mapping
+              if (pushName && pushName.trim()) {
+                attemptPushNameMapping(remoteJid, pushName.trim())
+              }
+              
+              mappingsFound++
+            }
+          }
         }
       })
     }
