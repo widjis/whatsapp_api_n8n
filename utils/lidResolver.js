@@ -45,14 +45,22 @@ export const saveContactMapping = () => {
 export const addContactMapping = (jid, phoneNumber) => {
   if (!jid || !phoneNumber) return
   
-  const formattedPhone = phoneNumberFormatter(phoneNumber)
   const cleanJid = jid.split('@')[0] // Remove @s.whatsapp.net or @lid parts
   
-  // Store both directions for faster lookup
-  contactMapping[cleanJid] = formattedPhone
-  contactMapping[formattedPhone] = cleanJid
-  
-  console.log(`Added contact mapping: ${cleanJid} <-> ${formattedPhone}`)
+  // Only create mappings for LIDs (non-numeric JIDs)
+  // Regular phone numbers don't need mapping since they're already phone numbers
+  if (!/^\d+$/.test(cleanJid)) {
+    const formattedPhone = phoneNumberFormatter(phoneNumber)
+    
+    // Store both directions for faster lookup (LID <-> Phone)
+    contactMapping[cleanJid] = formattedPhone
+    contactMapping[formattedPhone] = cleanJid
+    
+    console.log(`🔗 Added LID mapping: ${cleanJid} <-> ${formattedPhone}`)
+  } else {
+    // For regular phone numbers, no mapping needed
+    console.log(`📱 Regular phone number detected: ${cleanJid} - no mapping required`)
+  }
 }
 
 /**
@@ -107,36 +115,28 @@ export const processMessageForMapping = (msg) => {
   if (remoteJid.endsWith('@g.us') && participant) {
     const participantJid = participant.split('@')[0]
     
-    // Check if this contact already exists in our mapping
-    const existingMapping = getPhoneFromJid(participant)
-    
-    if (!existingMapping) {
-      // Contact not in mapping, check if we can map it
-      if (/^\d+$/.test(participantJid)) {
-        // It's a regular phone number - map it
-        console.log(`📱 New contact detected in group: ${participantJid} - mapping automatically`)
-        addContactMapping(participant, participantJid)
-      } else {
-        // It's a LID, store for future reference
+    // Only process LIDs (non-numeric JIDs) - regular phone numbers don't need mapping
+    if (!/^\d+$/.test(participantJid)) {
+      // It's a LID, check if we already have a mapping
+      const existingMapping = getPhoneFromJid(participant)
+      
+      if (!existingMapping) {
         console.log(`🔍 New LID detected in group message: ${participantJid} - needs manual resolution`)
+        // Store LID for future reference (when we get phone number info)
       }
     }
   } else if (!remoteJid.endsWith('@g.us')) {
     // For direct messages, use remoteJid
     const senderJid = remoteJid.split('@')[0]
     
-    // Check if this contact already exists in our mapping
-    const existingMapping = getPhoneFromJid(remoteJid)
-    
-    if (!existingMapping) {
-      // Contact not in mapping, check if we can map it
-      if (/^\d+$/.test(senderJid)) {
-        // It's a regular phone number - map it
-        console.log(`📱 New contact detected in direct message: ${senderJid} - mapping automatically`)
-        addContactMapping(remoteJid, senderJid)
-      } else {
-        // It's a LID
+    // Only process LIDs (non-numeric JIDs) - regular phone numbers don't need mapping
+    if (!/^\d+$/.test(senderJid)) {
+      // It's a LID, check if we already have a mapping
+      const existingMapping = getPhoneFromJid(remoteJid)
+      
+      if (!existingMapping) {
         console.log(`🔍 New LID detected in direct message: ${senderJid} - needs manual resolution`)
+        // Store LID for future reference (when we get phone number info)
       }
     }
   }
@@ -214,29 +214,26 @@ export const scanBaileysStore = () => {
           // Skip our own messages
           if (fromMe) return
           
-          // Process group messages
+          // Process group messages - only look for LIDs
           if (remoteJid && remoteJid.endsWith('@g.us') && participant) {
             const participantJid = participant.split('@')[0]
             
-            // Check if it's a regular phone number
-            if (/^\d+$/.test(participantJid)) {
-              addContactMapping(participant, participantJid)
-              mappingsFound++
-            } else {
+            // Only process LIDs (non-numeric JIDs)
+            if (!/^\d+$/.test(participantJid)) {
               // It's a LID, log for debugging
-              console.log(`Found LID in stored message: ${participantJid}`)
+              console.log(`Found LID in stored group message: ${participantJid}`)
+              mappingsFound++
             }
           }
           
-          // Process direct messages
+          // Process direct messages - only look for LIDs
           if (remoteJid && !remoteJid.endsWith('@g.us')) {
             const senderJid = remoteJid.split('@')[0]
             
-            if (/^\d+$/.test(senderJid)) {
-              addContactMapping(remoteJid, senderJid)
-              mappingsFound++
-            } else {
+            // Only process LIDs (non-numeric JIDs)
+            if (!/^\d+$/.test(senderJid)) {
               console.log(`Found LID in stored direct message: ${senderJid}`)
+              mappingsFound++
             }
           }
         }

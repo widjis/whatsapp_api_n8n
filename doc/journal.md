@@ -176,6 +176,11 @@ This journal documents the development and current state of the WhatsApp API int
     - **Runtime**: Automatically detect and map new contacts from incoming messages
     - Enhanced logging with emojis for better monitoring and debugging
     - Prevents duplicate mappings by checking existing contacts before adding new ones
+  - **FIXED: Unnecessary Regular Phone Number Mappings**
+    - System now only creates mappings for actual LIDs (non-numeric JIDs)
+    - Regular phone numbers (like 6281290963185) no longer get bidirectional mappings
+    - Cleaned up existing contact_mapping.json to remove redundant phone number mappings
+    - Improved efficiency by avoiding unnecessary storage of regular phone number mappings
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions
