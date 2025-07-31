@@ -191,6 +191,21 @@ This journal documents the development and current state of the WhatsApp API int
     - Persistent storage of pushName mappings in contact_mapping.json
     - Historical message scanning now includes pushName extraction from Baileys store
     - Added statistics and debugging functions for pushName mapping analysis
+  - **CRITICAL BUG FIX: LID Detection Logic**
+    - **Issue:** `scanBaileysStore()` was incorrectly identifying LIDs using regex `/^\d+$/` which failed for numeric LIDs like `80444922015783@lid`
+    - **Root cause:** LIDs can be numeric, so checking only the part before `@` was insufficient
+    - **Solution:** Changed LID detection to check for `@lid` suffix instead of non-numeric pattern
+    - **Impact:** Now correctly detects and maps LIDs from existing baileys store data
+  - **Circular Dependency Resolution:**
+    - **Issue:** Circular import between `index.js` and `utils/lidResolver.js` via `phoneNumberFormatter`
+    - **Solution:** Extracted `phoneNumberFormatter` to separate `utils/phoneFormatter.js` module
+    - **Files affected:** `utils/phoneFormatter.js` (new), `utils/lidResolver.js`, `index.js`
+  - **RUNTIME LID DETECTION FIX:**
+    - **Issue:** `processMessageForMapping()` and `processReactionForMapping()` still used old regex-based LID detection
+    - **Problem:** Runtime messages with LIDs like `80444922015783@lid` were incorrectly treated as regular phone numbers
+    - **Solution:** Updated both functions to use `@lid` suffix detection instead of numeric regex
+    - **Result:** LIDs are now correctly identified and processed during real-time message handling
+    - **Files affected:** `utils/lidResolver.js` (processMessageForMapping, processReactionForMapping functions)
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions

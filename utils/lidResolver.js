@@ -288,8 +288,8 @@ export const processMessageForMapping = (msg) => {
       storePushNameMapping(participant, pushName.trim())
     }
     
-    // Only process LIDs (non-numeric JIDs) - regular phone numbers don't need mapping
-    if (!/^\d+$/.test(participantJid)) {
+    // Only process LIDs (ends with @lid) - regular phone numbers don't need mapping
+    if (participant.endsWith('@lid')) {
       // It's a LID, check if we already have a mapping
       const existingMapping = getPhoneFromJid(participant)
       
@@ -308,8 +308,8 @@ export const processMessageForMapping = (msg) => {
       storePushNameMapping(remoteJid, pushName.trim())
     }
     
-    // Only process LIDs (non-numeric JIDs) - regular phone numbers don't need mapping
-    if (!/^\d+$/.test(senderJid)) {
+    // Only process LIDs (ends with @lid) - regular phone numbers don't need mapping
+    if (remoteJid.endsWith('@lid')) {
       // It's a LID, check if we already have a mapping
       const existingMapping = getPhoneFromJid(remoteJid)
       
@@ -334,13 +334,14 @@ export const processReactionForMapping = (reaction) => {
   
   const participantJid = participant.split('@')[0]
   
-  // Try to extract phone number from participant JID
-  if (/^\d+$/.test(participantJid)) {
+  // Check if it's a LID (ends with @lid) or regular phone number
+  if (participant.endsWith('@lid')) {
+    // It's a LID, log it for debugging and attempt mapping
+    console.log(`Found LID in reaction: ${participantJid}`)
+    // Note: We could add pushName-based mapping here if we had access to pushName from reactions
+  } else if (/^\d+$/.test(participantJid)) {
     // It's a regular phone number
     addContactMapping(participant, participantJid)
-  } else {
-    // It's a LID, log it for debugging
-    console.log(`Found LID in reaction: ${participantJid}`)
   }
 }
 
