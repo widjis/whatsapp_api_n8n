@@ -7,6 +7,42 @@ const contactMappingFile = './contact_mapping.json'
 // In-memory cache for faster lookups
 let contactMapping = {}
 
+/**
+ * Build LID-to-phone mappings from pushName data
+ */
+const buildLidToPhoneMappings = () => {
+  console.log('🔨 Building LID-to-phone mappings from pushName data...')
+  
+  // Clear existing mappings
+  const existingMappings = { ...contactMapping }
+  
+  // Build mappings from lidToPushName and pushNameToPhones
+  if (pushNameMappings.lidToPushName && pushNameMappings.pushNameToPhones) {
+    Object.entries(pushNameMappings.lidToPushName).forEach(([lid, pushName]) => {
+      const normalizedPushName = pushName.toLowerCase()
+      const phones = pushNameMappings.pushNameToPhones[normalizedPushName]
+      
+      if (phones && phones.length > 0) {
+        // Use the first phone number as primary mapping
+        const primaryPhone = phones[0]
+        contactMapping[lid] = primaryPhone
+        contactMapping[primaryPhone.split('@')[0]] = lid // Reverse mapping
+        
+        console.log(`🔗 Built mapping: LID ${lid} <-> Phone ${primaryPhone} (via pushName: ${pushName})`)
+      }
+    })
+  }
+  
+  // Merge back any existing mappings that weren't overwritten
+  Object.entries(existingMappings).forEach(([key, value]) => {
+    if (!contactMapping[key]) {
+      contactMapping[key] = value
+    }
+  })
+  
+  console.log(`✅ Built ${Object.keys(contactMapping).length} total contact mappings`)
+}
+
 // PushName to JID mapping for similarity matching
 let pushNameMappings = {
   lidToPushName: {}, // LID -> pushName
@@ -24,15 +60,26 @@ export const loadContactMapping = () => {
       const data = fs.readFileSync(contactMappingFile, 'utf-8')
       const loadedData = JSON.parse(data)
       
-      // Load contact mappings
-      contactMapping = loadedData.contactMapping || loadedData
+      // Load contact mappings - handle nested structure
+      if (loadedData.contactMapping && typeof loadedData.contactMapping === 'object') {
+        // Remove metadata from contactMapping if it exists
+        const { metadata, ...actualMappings } = loadedData.contactMapping
+        contactMapping = actualMappings
+      } else {
+        contactMapping = loadedData.contactMapping || loadedData
+      }
       
       // Load pushName mappings if available
       if (loadedData.pushNameMappings) {
         pushNameMappings = loadedData.pushNameMappings
+        
+        // Build LID-to-phone mappings from pushName data
+        buildLidToPhoneMappings()
       }
       
       console.log(`Loaded ${Object.keys(contactMapping).length} contact mappings`)
+      console.log('Contact mapping keys:', Object.keys(contactMapping).slice(0, 10)) // Show first 10 keys for debugging
+      console.log('Sample mapping:', Object.entries(contactMapping).slice(0, 3)) // Show first 3 mappings
     } catch (err) {
       console.error('Failed to load contact mapping:', err)
       contactMapping = {}
@@ -107,20 +154,30 @@ export const addContactMapping = (jid, phoneNumber) => {
  * @returns {string|null} - The phone number or null if not found
  */
 export const getPhoneFromJid = (jid) => {
-  if (!jid) return null
+  if (!jid) {
+    console.log('❌ getPhoneFromJid called with null/undefined JID')
+    return null
+  }
   
   const cleanJid = jid.split('@')[0]
+  console.log(`🔍 Looking up phone number for JID: ${cleanJid}`)
+  console.log(`📋 Available contact mapping keys: ${Object.keys(contactMapping).length > 0 ? Object.keys(contactMapping).slice(0, 5).join(', ') + '...' : 'NONE'}`)
+  console.log(`🔑 Checking if contactMapping['${cleanJid}'] exists:`, contactMapping.hasOwnProperty(cleanJid))
   
   // First try direct mapping (for LIDs)
   if (contactMapping[cleanJid]) {
+    console.log(`✅ Found direct mapping for ${cleanJid} -> ${contactMapping[cleanJid]}`)
     return contactMapping[cleanJid]
   }
   
   // If it's a regular phone number format, try to format it
   if (/^\d+$/.test(cleanJid)) {
-    return phoneNumberFormatter(cleanJid)
+    const formatted = phoneNumberFormatter(cleanJid)
+    console.log(`📱 Formatted regular phone number ${cleanJid} -> ${formatted}`)
+    return formatted
   }
   
+  console.log(`❌ No phone number found for JID: ${cleanJid}`)
   return null
 }
 
@@ -359,7 +416,13 @@ export const resolvePhoneNumber = (jid) => {
     return mappedPhone
   }
   
-  // Fallback to original method
+  // Check if it's a LID - don't format LIDs as phone numbers
+  if (jid.endsWith('@lid')) {
+    console.warn(`LID not mapped to phone number: ${jid}`)
+    return null // Return null to indicate unmapped LID
+  }
+  
+  // Fallback for regular phone numbers only
   const cleanJid = jid.split('@')[0]
   if (/^\d+$/.test(cleanJid)) {
     return phoneNumberFormatter(cleanJid)

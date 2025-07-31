@@ -206,6 +206,13 @@ This journal documents the development and current state of the WhatsApp API int
     - **Solution:** Updated both functions to use `@lid` suffix detection instead of numeric regex
     - **Result:** LIDs are now correctly identified and processed during real-time message handling
     - **Files affected:** `utils/lidResolver.js` (processMessageForMapping, processReactionForMapping functions)
+  - **PHONE NUMBER RESOLUTION FIX:**
+    - **Issue:** `resolvePhoneNumber()` was still formatting LIDs as phone numbers when no mapping existed
+    - **Problem:** Unmapped LIDs like `80444922015783@lid` were converted to `80444922015783@c.us` via phoneNumberFormatter
+    - **Solution:** Added LID detection in `resolvePhoneNumber()` to return null for unmapped LIDs instead of formatting them
+    - **Additional:** Updated `index.js` reaction handling to skip technician lookup when resolvePhoneNumber returns null
+    - **Result:** LIDs are no longer incorrectly formatted as phone numbers; proper warning messages for unmapped LIDs
+    - **Files affected:** `utils/lidResolver.js` (resolvePhoneNumber function), `index.js` (reaction handling)
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions
@@ -217,5 +224,46 @@ This journal documents the development and current state of the WhatsApp API int
 
 ---
 
+## Entry: January 31, 2025
+
+### Fixed LID Contact Mapping Issue
+
+#### **Problem**
+- LID (Local Identifier) to phone number mapping was not working
+- The `contactMapping[cleanJid]` lookup in `lidResolver.js` was always returning null
+- Contact mapping file structure had actual mappings nested incorrectly
+
+#### **Root Cause**
+- The `contact_mapping.json` file had `contactMapping` object containing only metadata
+- Actual LID-to-phone relationships were stored in `pushNameMappings` but not being converted to direct mappings
+- The loading logic wasn't building the required LID-to-phone mappings from the pushName data
+
+#### **Solution**
+1. **Enhanced Contact Mapping Loading** (`utils/lidResolver.js`):
+   - Added `buildLidToPhoneMappings()` function to construct LID-to-phone mappings from pushName data
+   - Modified `loadContactMapping()` to call the builder function after loading pushName mappings
+   - Added proper handling of nested contact mapping structure
+
+2. **Improved Debugging**:
+   - Added detailed logging to show available mapping keys during lookup
+   - Added logging to show the mapping building process
+   - Added sample mapping display for troubleshooting
+
+#### **Technical Changes**
+- **File**: `utils/lidResolver.js`
+  - Added `buildLidToPhoneMappings()` function (lines 11-47)
+  - Enhanced `loadContactMapping()` with proper data structure handling
+  - Added comprehensive debug logging in `getPhoneFromJid()`
+
+#### **Result**
+- LID `80444922015783` now correctly maps to phone `6285712612218@c.us`
+- Contact mapping system shows 4 total mappings instead of 0
+- Debug logs confirm successful mapping: "🔗 Built mapping: LID 80444922015783 <-> Phone 6285712612218@c.us (via pushName: Widji)"
+
+#### **Files Modified**
+- `utils/lidResolver.js` - Fixed contact mapping loading and added LID-to-phone mapping builder
+
+---
+
 *Journal maintained by: Development Team*  
-*Last updated: July 30, 2025*
+*Last updated: January 31, 2025*

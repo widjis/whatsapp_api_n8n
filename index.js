@@ -6178,25 +6178,32 @@ const startSock = async () => {
           const { id: messageId, remoteJid } = reaction.key
           const participant =
             reaction.reaction?.key?.participant || ''
+          console.log('Participant:', participant)
           
           // Process reaction for contact mapping
           processReactionForMapping(reaction)
           
           // Use enhanced phone number resolution
           const reacterNumber = resolvePhoneNumber(participant)
+          console.log('Reacter number:', reacterNumber)
 
           let ictTech = 'Not registered'
-          try {
-            const tech = getContactByPhone(reacterNumber)
-            if (tech) ictTech = tech.ict_name
-            else console.warn(
-              `Technician not found for reacter number: ${reacterNumber}`
-            )
-          } catch {
-            console.error(
-              'Error fetching technician by phone:',
-              reacterNumber
-            )
+          if (reacterNumber) {
+            try {
+              const tech = getContactByPhone(reacterNumber)
+              //console.log('Technician:', tech);
+              if (tech) ictTech = tech.ict_name
+              else console.warn(
+                `Technician not found for reacter number: ${reacterNumber}`
+              )
+            } catch {
+              console.error(
+                'Error fetching technician by phone:',
+                reacterNumber
+              )
+            }
+          } else {
+            console.log(`Skipping technician lookup for unmapped LID: ${participant}`)
           }
 
           getMessage(
