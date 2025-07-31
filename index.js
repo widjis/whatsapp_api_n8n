@@ -30,6 +30,7 @@ import {
   resolvePhoneNumber,
   scanBaileysStore
 } from './utils/lidResolver.js';
+import { phoneNumberFormatter } from './utils/phoneFormatter.js';
 
 dotenv.config();
 
@@ -247,21 +248,7 @@ const restrictedPhoneNumbers = [
   // Add more allowed numbers as needed
 ];
 
-export const phoneNumberFormatter = (number) => {
-    console.log(`Formatting phone number: ${number}`);
-    let formatted = number.replace(/\D/g, '');
-    console.log(`After removing non-digit characters: ${formatted}`);
-    if (formatted.startsWith('0')) {
-        formatted = '62' + formatted.substr(1);
-        console.log(`Adding country code and removing leading zero: ${formatted}`);
-    }
-    if (!formatted.endsWith('@c.us')) {
-        formatted += '@c.us';
-        console.log(`Adding WhatsApp domain: ${formatted}`);
-    }
-    console.log(`Formatted phone number: ${formatted}`);
-    return formatted;
-};
+// phoneNumberFormatter moved to utils/phoneFormatter.js to avoid circular dependencies
 
 const checkRegisteredNumber = async (number) => {
   if (!sock) {

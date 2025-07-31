@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { phoneNumberFormatter } from '../index.js'
+import { phoneNumberFormatter } from './phoneFormatter.js'
 
 // Contact mapping file to store JID to phone number relationships
 const contactMappingFile = './contact_mapping.json'
@@ -147,26 +147,28 @@ const storePushNameMapping = (jid, pushName) => {
   const cleanJid = jid.split('@')[0]
   const normalizedPushName = pushName.toLowerCase().trim()
   
-  if (/^\d+$/.test(cleanJid)) {
-    // It's a phone number
-    const formattedPhone = phoneNumberFormatter(cleanJid)
-    pushNameMappings.phoneToPushName[formattedPhone] = normalizedPushName
+  // Store LID to pushName mapping (check for @lid suffix)
+  if (jid.endsWith('@lid')) {
+    pushNameMappings.lidToPushName[cleanJid] = pushName
     
-    if (!pushNameMappings.pushNameToPhones[normalizedPushName]) {
-      pushNameMappings.pushNameToPhones[normalizedPushName] = []
-    }
-    if (!pushNameMappings.pushNameToPhones[normalizedPushName].includes(formattedPhone)) {
-      pushNameMappings.pushNameToPhones[normalizedPushName].push(formattedPhone)
-    }
-  } else {
-    // It's a LID
-    pushNameMappings.lidToPushName[cleanJid] = normalizedPushName
-    
+    // Store pushName to LIDs mapping
     if (!pushNameMappings.pushNameToLids[normalizedPushName]) {
       pushNameMappings.pushNameToLids[normalizedPushName] = []
     }
     if (!pushNameMappings.pushNameToLids[normalizedPushName].includes(cleanJid)) {
       pushNameMappings.pushNameToLids[normalizedPushName].push(cleanJid)
+    }
+  } else {
+    // Store phone to pushName mapping
+    const formattedPhone = phoneNumberFormatter(cleanJid)
+    pushNameMappings.phoneToPushName[formattedPhone] = pushName
+    
+    // Store pushName to phones mapping
+    if (!pushNameMappings.pushNameToPhones[normalizedPushName]) {
+      pushNameMappings.pushNameToPhones[normalizedPushName] = []
+    }
+    if (!pushNameMappings.pushNameToPhones[normalizedPushName].includes(formattedPhone)) {
+      pushNameMappings.pushNameToPhones[normalizedPushName].push(formattedPhone)
     }
   }
 }
@@ -395,17 +397,13 @@ export const scanBaileysStore = () => {
           
           // Process group messages
           if (remoteJid && remoteJid.endsWith('@g.us') && participant) {
-            const participantJid = participant.split('@')[0]
-            
             // Store pushName mapping for both LIDs and regular phone numbers
             if (pushName && pushName.trim()) {
               storePushNameMapping(participant, pushName.trim())
             }
             
-            // Only process LIDs (non-numeric JIDs)
-            if (!/^\d+$/.test(participantJid)) {
-              console.log(`🔍 Found LID in stored group message: ${participantJid} (${pushName || 'Unknown'})`)
-              
+            // Only process LIDs (JIDs ending with @lid)
+            if (participant.endsWith('@lid')) {
               // Attempt pushName mapping
               if (pushName && pushName.trim()) {
                 attemptPushNameMapping(participant, pushName.trim())
@@ -417,17 +415,13 @@ export const scanBaileysStore = () => {
           
           // Process direct messages
           if (remoteJid && !remoteJid.endsWith('@g.us')) {
-            const senderJid = remoteJid.split('@')[0]
-            
             // Store pushName mapping for both LIDs and regular phone numbers
             if (pushName && pushName.trim()) {
               storePushNameMapping(remoteJid, pushName.trim())
             }
             
-            // Only process LIDs (non-numeric JIDs)
-            if (!/^\d+$/.test(senderJid)) {
-              console.log(`🔍 Found LID in stored direct message: ${senderJid} (${pushName || 'Unknown'})`)
-              
+            // Only process LIDs (JIDs ending with @lid)
+            if (remoteJid.endsWith('@lid')) {
               // Attempt pushName mapping
               if (pushName && pushName.trim()) {
                 attemptPushNameMapping(remoteJid, pushName.trim())
