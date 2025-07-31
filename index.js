@@ -139,6 +139,12 @@ import {
   addContact,
   phoneNumberFormatter
 } from './technicianContacts.js';
+
+// Helper function to format phone number to WhatsApp JID
+const formatJid = (number) => {
+  const formattedNumber = phoneNumberFormatter(number);
+  return formattedNumber + '@s.whatsapp.net';
+};
 import { 
   isLinkedId, 
   resolveParticipant, 
@@ -2873,7 +2879,7 @@ const sendWhatsAppMessage = async (sock, { jid, message }) => {
       await storeThread(wa_id, thread_id);
 
       // Send the message to the specified formattedJid (destination number)
-      await sock.sendMessage(formattedJid, { text: message });
+      await sock.sendMessage(formatJid(jid), { text: message });
       console.log(`Message sent to ${formattedJid}: ${message}`);
 
       // If this is a new thread, do not trigger an immediate AI response
@@ -6275,7 +6281,7 @@ const startSock = async () => {
           }
           // console.log('=== END GROUP MEMBERS DISPLAY ===\n');
 
-          const testNumber = phoneNumberFormatter('085712612218') + '@s.whatsapp.net'
+          const testNumber = formatJid('085712612218')
           console.log('Testing sendMessage to', testNumber)
           try {
             const resp = await sock.sendMessage(testNumber, {
@@ -6598,7 +6604,7 @@ app.post(
 
     // 4) Send
     try {
-      const response = await sock.sendMessage(number, payload);
+      const response = await sock.sendMessage(formatJid(req.body.number), payload);
       return res.status(200).json({ status: true, response });
     } catch (err) {
       console.error('Error sending message:', err);
@@ -6760,10 +6766,9 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper function to send a message
 async function sendMessage(number, message) {
-  const formattedNumber = phoneNumberFormatter(number);
   try {
-    const response = await sock.sendMessage(formattedNumber, { text: message });
-    console.log(`Message sent to ${formattedNumber}:`, response);
+    const response = await sock.sendMessage(formatJid(number), { text: message });
+    console.log(`Message sent to ${formatJid(number)}:`, response);
     return response;
   } catch (error) {
     console.error(`Failed to send message to ${formattedNumber}:`, error);
@@ -7591,11 +7596,11 @@ const handleNewRequest = async (payload, requestObj, receiver, receiver_type) =>
       const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject}\" (ID: ${workorderid}) has been created. Please wait while our team processes your request.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
       console.log('Sending message to requester:', requesterMessage);
       if (mobile) {
-          await sock.sendMessage(phoneNumberFormatter(mobile) + '@s.whatsapp.net', { text: requesterMessage });
+          await sock.sendMessage(formatJid(mobile), { text: requesterMessage });
       } else {
           const mobileNumber = await findUserMobileByEmail(email);
           if (mobileNumber) {
-              await sock.sendMessage(phoneNumberFormatter(mobileNumber) + '@s.whatsapp.net', { text: requesterMessage });
+              await sock.sendMessage(formatJid(mobileNumber), { text: requesterMessage });
           } else {
               console.log('Mobile number not found for the requester.');
           }
@@ -7701,7 +7706,7 @@ const handleUpdatedRequest = async (payload, requestObj, receiver, receiver_type
   if (notify_requester_update === 'true' && mobile !== 'N/A') {
     const requesterMessage = `Dear *${createdby}*,\n\nYour ticket \"${subject || 'No subject'}\" (ID: ${workorderid}) has been updated. Here are the details:\n\n${changes}\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
     try {
-      await sock.sendMessage(phoneNumberFormatter(mobile) + '@s.whatsapp.net', { text: requesterMessage });
+      await sock.sendMessage(formatJid(mobile), { text: requesterMessage });
     } catch (error) {
       console.error(`Error sending notification to requester: ${error.message}`);
     }
@@ -7736,7 +7741,7 @@ const handleTechnicianChange = async (
       const oldTechnician = await getContactByIctTechnicianName(previousTechnician);
       if (oldTechnician) {
         const message = `Dear *${oldTechnician.name}*,\n\nThe ticket with ID *${workorderid}* has been reassigned and is no longer under your responsibility.\n\n*Ticket Subject:* ${subject}`;
-        await sock.sendMessage(phoneNumberFormatter(oldTechnician.phone) + '@s.whatsapp.net', { text: message });
+        await sock.sendMessage(formatJid(oldTechnician.phone), { text: message });
       }
     } catch (error) {
       console.error(`Error notifying old technician: ${error.message}`);
@@ -7753,7 +7758,7 @@ const handleTechnicianChange = async (
         // Store the current state of the ticket for the new technician
         await storeCurrentTicketState(workorderid, { technician: newTechnicianName });
         const message = `Dear *${newTechnician.name}*,\n\nYou have been assigned a new ticket:\n\n*Ticket ID:* ${workorderid}\n*Subject:* ${subject}\n*Created by:* ${createdby}\n\nPlease address this ticket as soon as possible.\n\n*View details:* [View Request](https://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1)`;
-        await sock.sendMessage(phoneNumberFormatter(newTechnician.phone) + '@s.whatsapp.net', { text: message });
+        await sock.sendMessage(formatJid(newTechnician.phone), { text: message });
       }
     } catch (error) {
       console.error(`Error notifying new technician: ${error.message}`);
@@ -7769,7 +7774,7 @@ const handleTechnicianChange = async (
         : // Reassignment
           `Dear *${createdby}*,\n\nYour ticket with subject: "${subject}" has been reassigned from *${previousTechnician}* to *${newTechnicianName}*. Please wait while our support team reaches out to you.\n\n*View your request here:*\nhttps://helpdesk.merdekabattery.com/WorkOrder.do?woMode=viewWO&woID=${workorderid}&PORTALID=1`;
 
-    await sock.sendMessage(phoneNumberFormatter(mobile) + '@s.whatsapp.net', { text: message });
+    await sock.sendMessage(formatJid(mobile), { text: message });
   }
 };
 

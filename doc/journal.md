@@ -513,6 +513,45 @@ const getAllGroupMembers = async () => {
   - Improved reliability for `/finduser` command with photo functionality
   - Better error logging and debugging information
 
+### January 15, 2025 - Additional JID Format Fixes
+
+- **JID Format Fix for Remaining sendMessage Calls**:
+  - **Issue**: Additional instances of `jidDecode` error found in lines 2876, 6601, and 6765 where `phoneNumberFormatter()` output was used directly in `sock.sendMessage()` calls
+  - **Root Cause**: `phoneNumberFormatter()` returns only phone numbers (e.g., '6285712612218') but `sendMessage()` requires full JID format (e.g., '6285712612218@s.whatsapp.net')
+  - **Solution**: Updated remaining `sendMessage()` calls to append `+ '@s.whatsapp.net'` to phone numbers
+  - **Files Modified**: `index.js` (lines 2876, 6601, 6765)
+  - **Functions Affected**:
+    - OpenAI message sending functionality
+    - Individual message sending endpoint
+    - Helper sendMessage function
+  - **Result**: All remaining jidDecode errors should now be resolved
+
+### 2024-12-19 - Refactored WhatsApp JID Formatting to Centralized Function
+
+**Issue**: Manual appending of `'@s.whatsapp.net'` to phone numbers was scattered throughout the codebase, making it error-prone and difficult to maintain.
+
+**Solution**: Created a centralized `formatJid()` function that handles both phone number formatting and WhatsApp domain suffix appending.
+
+**Implementation**:
+- Added `formatJid(number)` function in `index.js` that:
+  - Uses `phoneNumberFormatter()` to format the phone number
+  - Automatically appends `'@s.whatsapp.net'` suffix
+  - Returns the complete WhatsApp JID format
+
+**Files Modified**:
+- `index.js` - Added `formatJid()` function and updated all `sock.sendMessage()` calls
+
+**Functions Updated**:
+- All `sock.sendMessage()` calls now use `formatJid()` instead of manual concatenation
+- Removed redundant `phoneNumberFormatter()` calls where `formatJid()` handles both formatting and suffix
+
+**Benefits**:
+- Centralized JID formatting logic
+- Reduced code duplication
+- Eliminated risk of missing `@s.whatsapp.net` suffix
+- Easier maintenance and future modifications
+- Consistent JID formatting across the entire application
+
 ---
 
 *Journal maintained by: Development Team*  
