@@ -169,6 +169,7 @@ This journal documents the development and current state of the WhatsApp API int
   - Enhanced reaction-based ticket assignment to handle WhatsApp LIDs
   - Added persistent storage in `contact_mapping.json`
   - Improved phone number resolution for helpdesk operations
+  - Fixed export/import issues for `phoneNumberFormatter` function
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions
