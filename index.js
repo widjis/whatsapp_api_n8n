@@ -23,6 +23,12 @@ import { decode } from 'html-entities';
 import { storeMessage, getMessage, cleanupOldMessages, markMessageAsReacted, findReacterNumber } from './fileStore.js';
 import onedrive from './modules/onedrive.js';
 import { getAIBrowser } from './modules/perplexity.js';
+import { 
+  initContactMapping, 
+  processMessageForMapping, 
+  processReactionForMapping, 
+  resolvePhoneNumber 
+} from './utils/lidResolver.js';
 
 dotenv.config();
 
@@ -240,7 +246,7 @@ const restrictedPhoneNumbers = [
   // Add more allowed numbers as needed
 ];
 
-const phoneNumberFormatter = (number) => {
+export const phoneNumberFormatter = (number) => {
     console.log(`Formatting phone number: ${number}`);
     let formatted = number.replace(/\D/g, '');
     console.log(`After removing non-digit characters: ${formatted}`);
@@ -6146,6 +6152,9 @@ const startSock = async () => {
 
             const body = extractMessageContent(msg)?.trim()
 
+            // Process message for contact mapping
+            processMessageForMapping(msg)
+
             // persist "New request"
             if (body && body.includes('New request')) {
               console.log('Storing ticket message:', body)
@@ -6181,9 +6190,12 @@ const startSock = async () => {
           const { id: messageId, remoteJid } = reaction.key
           const participant =
             reaction.reaction?.key?.participant || ''
-          const reacterNumber = phoneNumberFormatter(
-            participant.split('@')[0]
-          )
+          
+          // Process reaction for contact mapping
+          processReactionForMapping(reaction)
+          
+          // Use enhanced phone number resolution
+          const reacterNumber = resolvePhoneNumber(participant)
 
           let ictTech = 'Not registered'
           try {
@@ -6250,8 +6262,8 @@ const startSock = async () => {
                   //Find the reacter's number using the message ID and remote JID
                   const originalReacterJid = await findReacterNumber(messageId, remoteJid)
 
-                  //Format the reacter's number to a phone number format
-                  const originalReacterNumber = phoneNumberFormatter(originalReacterJid.split('@')[0]);
+                  //Format the reacter's number to a phone number format using enhanced resolution
+                  const originalReacterNumber = resolvePhoneNumber(originalReacterJid);
 
                   // Get the existing technician's name based on the reacter's phone number
                   const existingTechnicianName = originalReacterNumber ? getContactByPhone(originalReacterNumber).ict_name : "another technician";
@@ -8029,6 +8041,9 @@ const handleExit = (signal) => {
 
 process.on('SIGINT', handleExit);
 process.on('SIGTERM', handleExit);
+
+// Initialize contact mapping system
+initContactMapping();
 
 // app.listen(PORT, () => {
 //     console.log(`Server running on port ${PORT}`);

@@ -108,7 +108,9 @@ This journal documents the development and current state of the WhatsApp API int
 │   └── perplexity.js - Perplexity AI integration
 ├── utils/
 │   ├── historyStore.js - Message history management
+│   ├── lidResolver.js - Contact mapping for JID to phone number resolution
 │   └── messageFormatter.js - WhatsApp text formatting
+├── contact_mapping.json - Persistent storage for JID to phone mappings
 ├── docker-compose.yml - Container orchestration
 ├── package.json - Dependencies and scripts
 └── README.md - Project documentation (minimal)
@@ -161,6 +163,12 @@ This journal documents the development and current state of the WhatsApp API int
 - Enhanced WiFi management with pool support
 - Improved error handling across all modules
 - Added support for document processing with AI analysis
+- **NEW: Contact Mapping System for LID Resolution**
+  - Created `utils/lidResolver.js` for automatic JID to phone number mapping
+  - Integrated contact mapping into message and reaction processing
+  - Enhanced reaction-based ticket assignment to handle WhatsApp LIDs
+  - Added persistent storage in `contact_mapping.json`
+  - Improved phone number resolution for helpdesk operations
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions

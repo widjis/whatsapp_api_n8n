@@ -1,0 +1,7 @@
+{
+  "_info": {
+    "description": "Contact mapping between WhatsApp JIDs (including LIDs) and phone numbers",
+    "created": "2025-01-27",
+    "version": "1.0.0"
+  }
+}
