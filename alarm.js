@@ -1,7 +1,9 @@
 const schedule = require('node-schedule');
 const fs = require('fs');
 const path = require('path');
-const ALARM_FILE_PATH = path.join(__dirname, 'alarms.json');
+// Use DATA_DIR environment variable if available, otherwise use default path
+const dataDir = process.env.DATA_DIR || __dirname;
+const ALARM_FILE_PATH = path.join(dataDir, 'alarms.json');
 
 let alarms = {};
 let sock; // Global reference for sock

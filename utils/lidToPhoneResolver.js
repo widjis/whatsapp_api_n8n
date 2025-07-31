@@ -14,7 +14,9 @@ class LidToPhoneResolver {
         this.jidToPushName = new Map(); // jid -> pushName
         this.phoneToLid = new Map(); // phone -> lid (reverse mapping)
         this.pendingContacts = new Map(); // phoneNumber -> {pushName, jid, timestamp}
-        this.storageFile = path.join(__dirname, '../lid_phone_mappings.json');
+        // Use DATA_DIR environment variable if available, otherwise use default path
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
+        this.storageFile = path.join(dataDir, 'lid_phone_mappings.json');
         this.sock = null;
         
         // Load existing mappings and track if file existed

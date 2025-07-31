@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const contactsPath = path.join(__dirname, 'technicianContacts.json');
+// Use DATA_DIR environment variable if available, otherwise use default path
+const dataDir = process.env.DATA_DIR || __dirname;
+const contactsPath = path.join(dataDir, 'technicianContacts.json');
 
 // Normalize phone number
 const phoneNumberFormatter = (number) => {

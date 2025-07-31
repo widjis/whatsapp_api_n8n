@@ -576,6 +576,34 @@ const getAllGroupMembers = async () => {
 - Consistent data state between development and production environments
 - Easier backup and restore procedures
 
+### 2024-12-19 - Fixed EISDIR Error with Data Directory Approach
+
+**Issue**: Docker volume mounts for individual JSON files were creating directories instead of files, causing `EISDIR: illegal operation on a directory` errors when trying to write to `lid_phone_mappings.json`, `alarms.json`, and `technicianContacts.json`.
+
+**Root Cause**: When Docker mounts a file that doesn't exist inside the container, it creates a directory instead of a file, preventing write operations.
+
+**Solution**: Changed from individual file mounts to a data directory approach using environment variables.
+
+**Implementation**:
+- Modified `docker-compose.yml` and `docker-compose.dev.yml` to mount the entire project directory and use `DATA_DIR` environment variable
+- Updated file path resolution in:
+  - `utils/lidToPhoneResolver.js`: Uses `DATA_DIR` environment variable for `lid_phone_mappings.json`
+  - `alarm.js`: Uses `DATA_DIR` environment variable for `alarms.json`
+  - `technicianContacts.js`: Uses `DATA_DIR` environment variable for `technicianContacts.json`
+
+**Files Modified**:
+- `docker-compose.yml`: Changed to data directory mount with `DATA_DIR=/usr/src/app/data`
+- `docker-compose.dev.yml`: Changed to use `DATA_DIR=/usr/src/app`
+- `utils/lidToPhoneResolver.js`: Updated storage file path to use `DATA_DIR`
+- `alarm.js`: Updated alarm file path to use `DATA_DIR`
+- `technicianContacts.js`: Updated contacts file path to use `DATA_DIR`
+
+**Benefits**:
+- Eliminates EISDIR errors by avoiding individual file mounts
+- Maintains data persistence across container operations
+- More flexible file path management
+- Consistent behavior between development and production environments
+
 ---
 
 *Journal maintained by: Development Team*  

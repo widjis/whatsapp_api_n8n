@@ -7,8 +7,8 @@ services:
     volumes:
       - ./templates.json:/usr/src/app/templates.json
       - ./baileys_store.json:/usr/src/app/baileys_store.json
-      - ./lid_phone_mappings.json:/usr/src/app/lid_phone_mappings.json
-      - ./alarms.json:/usr/src/app/alarms.json
-      - ./technicianContacts.json:/usr/src/app/technicianContacts.json
+      - .:/usr/src/app/data
+    environment:
+      - DATA_DIR=/usr/src/app/data
     ports:
       - "8192:8192"
