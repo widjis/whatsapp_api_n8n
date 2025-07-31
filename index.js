@@ -23,11 +23,12 @@ import { decode } from 'html-entities';
 import { storeMessage, getMessage, cleanupOldMessages, markMessageAsReacted, findReacterNumber } from './fileStore.js';
 import onedrive from './modules/onedrive.js';
 import { getAIBrowser } from './modules/perplexity.js';
-import { 
-  initContactMapping, 
-  processMessageForMapping, 
-  processReactionForMapping, 
-  resolvePhoneNumber 
+import {
+  initContactMapping,
+  processMessageForMapping,
+  processReactionForMapping,
+  resolvePhoneNumber,
+  scanBaileysStore
 } from './utils/lidResolver.js';
 
 dotenv.config();

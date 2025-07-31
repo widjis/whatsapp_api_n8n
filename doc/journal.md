@@ -170,6 +170,12 @@ This journal documents the development and current state of the WhatsApp API int
   - Added persistent storage in `contact_mapping.json`
   - Improved phone number resolution for helpdesk operations
   - Fixed export/import issues for `phoneNumberFormatter` function
+  - Added `scanBaileysStore()` function to extract existing contact data from message history
+  - **Improved Algorithm Flow:**
+    - **Startup**: Check if contact file exists, create if missing, then scan Baileys store
+    - **Runtime**: Automatically detect and map new contacts from incoming messages
+    - Enhanced logging with emojis for better monitoring and debugging
+    - Prevents duplicate mappings by checking existing contacts before adding new ones
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions

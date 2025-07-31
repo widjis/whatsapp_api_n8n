@@ -10,6 +10,7 @@ lerna-debug.log*
 *.env
 .env
 baileys_store.json
+contact_mapping.json
 node_modules
 auth_info
 dist
