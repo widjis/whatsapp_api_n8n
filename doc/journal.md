@@ -181,6 +181,16 @@ This journal documents the development and current state of the WhatsApp API int
     - Regular phone numbers (like 6281290963185) no longer get bidirectional mappings
     - Cleaned up existing contact_mapping.json to remove redundant phone number mappings
     - Improved efficiency by avoiding unnecessary storage of regular phone number mappings
+  - **NEW: PushName Similarity Matching for LID Resolution**
+    - Implemented automatic LID to phone number mapping using pushName similarity
+    - System now extracts and stores pushNames from all incoming messages (both LIDs and phone numbers)
+    - Uses Levenshtein distance algorithm for fuzzy matching of similar names
+    - Automatic mapping when exact pushName match found with single phone number
+    - Intelligent similarity matching with 80% threshold for near-exact matches
+    - Enhanced logging shows pushNames alongside LIDs for better visibility
+    - Persistent storage of pushName mappings in contact_mapping.json
+    - Historical message scanning now includes pushName extraction from Baileys store
+    - Added statistics and debugging functions for pushName mapping analysis
 
 #### **Next Steps**
 - Expand README.md with comprehensive setup instructions
