@@ -21,6 +21,9 @@ services:
     volumes:
       - .:/usr/src/app
       - whatsapp_node_modules:/usr/src/app/node_modules
+      - ./lid_phone_mappings.json:/usr/src/app/lid_phone_mappings.json
+      - ./alarms.json:/usr/src/app/alarms.json
+      - ./technicianContacts.json:/usr/src/app/technicianContacts.json
     ports:
       - "8192:8192"
       - "9229:9229"   # if you ever need a debugger

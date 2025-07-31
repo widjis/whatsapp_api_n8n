@@ -552,6 +552,30 @@ const getAllGroupMembers = async () => {
 - Easier maintenance and future modifications
 - Consistent JID formatting across the entire application
 
+### 2024-12-19 - Added Data Persistence Volume Mounts for Docker
+
+**Issue**: Important application data files were not persisted when Docker containers were removed, causing loss of LID mappings, alarms, and technician contacts.
+
+**Solution**: Added volume mounts for all critical data files that are modified at runtime.
+
+**Files Modified**:
+- <mcfile name="docker-compose.yml" path="/Users/widjis/Documents/System Project/whatsapp_api_n8n/docker-compose.yml"></mcfile> - Added volume mounts for data persistence
+- <mcfile name="docker-compose.dev.yml" path="/Users/widjis/Documents/System Project/whatsapp_api_n8n/docker-compose.dev.yml"></mcfile> - Added volume mounts for development environment
+
+**Volume Mounts Added**:
+- `./lid_phone_mappings.json:/usr/src/app/lid_phone_mappings.json` - LID to phone number mappings
+- `./alarms.json:/usr/src/app/alarms.json` - User alarm configurations
+- `./technicianContacts.json:/usr/src/app/technicianContacts.json` - Technician contact information
+- `./templates.json:/usr/src/app/templates.json` - Message templates (already existed)
+- `./baileys_store.json:/usr/src/app/baileys_store.json` - WhatsApp session data (already existed)
+
+**Benefits**:
+- Data persistence across container restarts and removals
+- No loss of LID mappings when containers are recreated
+- Preserved alarm configurations and technician contacts
+- Consistent data state between development and production environments
+- Easier backup and restore procedures
+
 ---
 
 *Journal maintained by: Development Team*  
