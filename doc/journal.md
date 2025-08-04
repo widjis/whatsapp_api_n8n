@@ -304,5 +304,74 @@ This journal documents the development and current state of the WhatsApp API int
 
 ---
 
+## 2025-01-31 - Enhanced Photo Handling for /finduser Command
+
+### Problem
+- `/finduser widji /photo` command sometimes fails to return photos
+- No detailed logging to diagnose photo retrieval failures
+- Users receive no feedback when photos are unavailable or fail to load
+- No validation of photo data integrity before sending
+
+### Root Cause Analysis
+Several potential issues identified:
+1. **Database Issues**: Records might not exist, be marked as deleted, or have null/empty PHOTO fields
+2. **Data Integrity**: Photo data might be corrupted or in unexpected formats
+3. **Missing Employee ID**: Users without employeeID cannot have photos retrieved
+4. **Silent Failures**: Errors were logged but users received no feedback about photo status
+
+### Solution
+1. **Enhanced Database Function** (`modules/db.js`):
+   - Added comprehensive logging for photo retrieval process
+   - Added validation to check if records exist but are marked as deleted
+   - Added detailed error reporting with stack traces
+   - Enhanced query to return additional debugging fields
+
+2. **Photo Data Validation**:
+   - Created `validatePhotoData()` function to check photo integrity
+   - Validates photo buffer size and format (JPEG, PNG, BMP, GIF)
+   - Checks for valid image file signatures
+   - Prevents sending corrupted or invalid photo data
+
+3. **Improved User Feedback**:
+   - Added photo status indicators in user captions
+   - Clear messages for different failure scenarios:
+     - "(No photo available)" - Photo not found in database
+     - "(No Employee ID)" - User has no employeeID for photo lookup
+     - "(Photo retrieval failed)" - Database error occurred
+     - "(Invalid photo data)" - Photo data failed validation
+     - "📷" - Photo successfully retrieved and validated
+
+4. **Enhanced Logging**:
+   - Added emoji-based logging for easy identification
+   - Detailed logging of photo retrieval steps
+   - Photo validation results with format and size information
+   - Database query results and record status
+
+### Technical Changes
+- **File**: `modules/db.js`
+  - Enhanced `getUserPhotoFromDB()` with comprehensive logging and error handling
+  - Added `validatePhotoData()` function for photo integrity validation
+  - Added fallback queries to diagnose missing records
+
+- **File**: `index.js`
+  - Imported `validatePhotoData` function
+  - Enhanced photo handling in `handleFindUser()` with validation
+  - Added photo status indicators in user captions
+  - Improved error handling and user feedback
+
+### Result
+- Users now receive clear feedback about photo availability status
+- Comprehensive logging helps diagnose photo retrieval issues
+- Photo data validation prevents sending corrupted images
+- Better error handling improves user experience
+- Detailed debugging information for troubleshooting
+
+#### **Files Modified**
+- `utils/lidResolver.js` - Fixed contact mapping loading and added LID-to-phone mapping builder
+- `index.js` - Added parameter validation for WhatsApp commands and enhanced photo handling
+- `modules/db.js` - Enhanced photo retrieval with validation and comprehensive logging
+
+---
+
 *Journal maintained by: Development Team*  
 *Last updated: January 31, 2025*

@@ -9,7 +9,7 @@ import {
 
 import { bindHistory, loadHistory, saveHistory } from './utils/historyStore.js';
 import cors from 'cors';
-import { getUserPhotoFromDB } from './modules/db.js';
+import { getUserPhotoFromDB, validatePhotoData } from './modules/db.js';
 import dotenv from 'dotenv';
 import express from 'express';
 import { body, validationResult } from 'express-validator';
@@ -4605,7 +4605,7 @@ async function handleFindUser(...args) {
           : "Password never expires";
 
         const caption =
-          `*${user.displayName}* [MTI]\n` +
+          `*${user.displayName}* [MTI]${photoStatus}\n` +
           `📧 ${user.userPrincipalName}\n` +
           `🏷️ ${user.title}\n` +
           `🏢 ${user.department}\n` +
@@ -4617,18 +4617,35 @@ async function handleFindUser(...args) {
         console.log('Built caption:', caption.replace(/\n/g, ' | '));
 
         let photoBuffer = null;
+        let photoStatus = '';
         if (includePhoto && user.employeeID) {
-          console.log(`Fetching photo for EmployeeID ${user.employeeID}…`);
+          console.log(`📷 [FindUser] Fetching photo for EmployeeID ${user.employeeID}…`);
           try {
             photoBuffer = await getUserPhotoFromDB(user.employeeID);
             if (photoBuffer) {
-              console.log(' → Photo buffer received, size:', photoBuffer.length);
+              console.log(`✅ [FindUser] Photo buffer received, size: ${photoBuffer.length} bytes`);
+              
+              // Validate photo data integrity
+              const validation = validatePhotoData(photoBuffer);
+              if (validation.valid) {
+                console.log(`✅ [FindUser] Photo validation passed - Format: ${validation.format}, Size: ${validation.size} bytes`);
+                photoStatus = ' 📷';
+              } else {
+                console.log(`❌ [FindUser] Photo validation failed: ${validation.reason}`);
+                photoBuffer = null; // Don't send invalid photo
+                photoStatus = ' (Invalid photo data)';
+              }
             } else {
-              console.log(' → No photo found in DB for', user.employeeID);
+              console.log(`❌ [FindUser] No photo found in DB for EmployeeID: ${user.employeeID}`);
+              photoStatus = ' (No photo available)';
             }
           } catch (dbErr) {
-            console.warn(` → DB lookup error for ${user.employeeID}:`, dbErr.message);
+            console.error(`❌ [FindUser] DB lookup error for ${user.employeeID}:`, dbErr.message);
+            photoStatus = ' (Photo retrieval failed)';
           }
+        } else if (includePhoto && !user.employeeID) {
+          console.log(`⚠️ [FindUser] Photo requested but no EmployeeID found for user: ${user.displayName}`);
+          photoStatus = ' (No Employee ID)';
         }
 
         if (sock && from) {
