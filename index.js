@@ -4604,20 +4604,10 @@ async function handleFindUser(...args) {
           ? `Password Expired on: ${expires}`
           : "Password never expires";
 
-        const caption =
-          `*${user.displayName}* [MTI]${photoStatus}\n` +
-          `📧 ${user.userPrincipalName}\n` +
-          `🏷️ ${user.title}\n` +
-          `🏢 ${user.department}\n` +
-          `📱 ${user.mobile || 'Not available'}\n` +
-          (user.employeeID ? `🆔 ${user.employeeID}\n` : '') +
-          `🔒 Last Pass Change: ${lastSet}\n` +
-          `⏳ ${expiryMsg}`;
-
-        console.log('Built caption:', caption.replace(/\n/g, ' | '));
-
+        // Initialize photo variables first
         let photoBuffer = null;
         let photoStatus = '';
+        // Handle photo processing if requested
         if (includePhoto && user.employeeID) {
           console.log(`📷 [FindUser] Fetching photo for EmployeeID ${user.employeeID}…`);
           try {
@@ -4647,6 +4637,19 @@ async function handleFindUser(...args) {
           console.log(`⚠️ [FindUser] Photo requested but no EmployeeID found for user: ${user.displayName}`);
           photoStatus = ' (No Employee ID)';
         }
+
+        // Build caption after photo processing
+        const caption =
+          `*${user.displayName}* [MTI]${photoStatus}\n` +
+          `📧 ${user.userPrincipalName}\n` +
+          `🏷️ ${user.title}\n` +
+          `🏢 ${user.department}\n` +
+          `📱 ${user.mobile || 'Not available'}\n` +
+          (user.employeeID ? `🆔 ${user.employeeID}\n` : '') +
+          `🔒 Last Pass Change: ${lastSet}\n` +
+          `⏳ ${expiryMsg}`;
+
+        console.log('Built caption:', caption.replace(/\n/g, ' | '));
 
         if (sock && from) {
           if (includePhoto && photoBuffer) {
