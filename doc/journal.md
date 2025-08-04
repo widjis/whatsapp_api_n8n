@@ -360,19 +360,34 @@ Several potential issues identified:
   - Improved error handling and user feedback
 
 ### Additional Fix - Database Connection Issue
-**Problem**: "Connection is closed" error when fetching photos
-**Root Cause**: Database connection pool was timing out or getting closed
+
+**Problem**: "Connection is closed" error when fetching photos from database
+**Root Cause**: Database connection pool was timing out or getting closed during photo retrieval operations
 **Solution**: 
-- Added `ensureConnection()` function to check and reconnect database pool
-- Enhanced connection health checks before each photo query
+- Added `ensureConnection()` function to check and reconnect database pool before queries
+- Enhanced connection health checks and automatic reconnection logic
 - Improved error handling for connection failures
-- Added automatic reconnection logic
+
+### Critical Bug Fix - Variable Initialization Error
+
+**Problem**: `ReferenceError: Cannot access 'photoStatus' before initialization` in `/finduser` command
+**Root Cause**: The `photoStatus` variable was being used in caption construction before it was declared and initialized
+**Solution**: 
+- Moved photo processing logic before caption construction
+- Initialized `photoBuffer` and `photoStatus` variables at the beginning of the user processing loop
+- Ensured proper variable scope and initialization order
+
+**Technical Changes**:
+- **File**: `index.js` - `handleFindUser` function
+- **Change**: Reordered code to initialize photo variables before building caption
+- **Result**: Fixed ReferenceError and restored proper `/finduser /photo` functionality
 
 ### Result
 - Users now receive clear feedback about photo availability status
 - Comprehensive logging helps diagnose photo retrieval issues
 - Photo data validation prevents sending corrupted images
 - Database connection issues resolved with automatic reconnection
+- Variable initialization errors fixed
 - Better error handling improves user experience
 - Detailed debugging information for troubleshooting
 
