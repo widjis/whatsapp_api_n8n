@@ -265,5 +265,44 @@ This journal documents the development and current state of the WhatsApp API int
 
 ---
 
+## 2025-01-31 - Fixed Command Parameter Validation
+
+### Problem
+- Error "Cannot read properties of undefined (reading 'replace')" when typing `/addwifi` without proper parameters
+- Similar potential issues in other commands that parse parameters without validation
+- Commands would crash when users didn't provide required parameters
+
+### Root Cause
+- Commands like `/addwifi`, `/getbitlocker`, and `/resetpassword` were trying to access array elements without checking if they exist
+- Missing parameter validation before attempting to use `.replace()` or other methods on potentially undefined values
+
+### Solution
+1. **Added Parameter Validation** for critical commands:
+   - `/addwifi` - Validates poolName and macAddress parameters
+   - `/getbitlocker` - Validates hostname parameter  
+   - `/resetpassword` - Validates username and newPassword parameters
+
+2. **Improved Error Messages**:
+   - Added helpful usage examples for each command
+   - Clear error messages with proper command syntax
+   - Early return to prevent further execution on invalid input
+
+### Technical Changes
+- **File**: `index.js`
+  - Added parameter validation for `/addwifi` command (lines 5487-5492)
+  - Added parameter validation for `/getbitlocker` command (lines 5331-5337)
+  - Added parameter validation for `/resetpassword` command (lines 5292-5298)
+
+### Result
+- Commands now provide helpful error messages instead of crashing
+- Users get clear guidance on proper command usage
+- Application stability improved for malformed commands
+
+#### **Files Modified**
+- `utils/lidResolver.js` - Fixed contact mapping loading and added LID-to-phone mapping builder
+- `index.js` - Added parameter validation for WhatsApp commands
+
+---
+
 *Journal maintained by: Development Team*  
 *Last updated: January 31, 2025*

@@ -5286,6 +5286,15 @@ const handleChatBot = async (sock, from, text, isFromMe, hasDocument, hasImage, 
       const parts = text.split(/ |\u00A0|'/);
       const username = parts[1];
       const newPassword = parts[2];
+      
+      // Validate required parameters
+      if (!username || !newPassword) {
+        await sock.sendMessage(from, { 
+          text: `❌ Invalid command format. Usage: /resetpassword <username> <newPassword> [/change]\n\nExample: /resetpassword john.doe NewPass123 /change` 
+        });
+        return;
+      }
+      
       const changePasswordAtNextLogon = parts.length > 3 && parts[3] === '/change';
 
       // Extract the phone number of the user who sent the message
@@ -5325,7 +5334,15 @@ const handleChatBot = async (sock, from, text, isFromMe, hasDocument, hasImage, 
 
   else if (text.startsWith('/getbitlocker')) {
     const hostname = text.split(/\s+/)[1];
-  
+    
+    // Validate required parameter
+    if (!hostname) {
+      await sock.sendMessage(from, { 
+        text: `❌ Invalid command format. Usage: /getbitlocker <hostname>\n\nExample: /getbitlocker MTI-NB-177` 
+      });
+      return;
+    }
+
     getBitLockerInfo(hostname)
       .then(result => {
         if (!result.success) {
