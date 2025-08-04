@@ -359,10 +359,20 @@ Several potential issues identified:
   - Added photo status indicators in user captions
   - Improved error handling and user feedback
 
+### Additional Fix - Database Connection Issue
+**Problem**: "Connection is closed" error when fetching photos
+**Root Cause**: Database connection pool was timing out or getting closed
+**Solution**: 
+- Added `ensureConnection()` function to check and reconnect database pool
+- Enhanced connection health checks before each photo query
+- Improved error handling for connection failures
+- Added automatic reconnection logic
+
 ### Result
 - Users now receive clear feedback about photo availability status
 - Comprehensive logging helps diagnose photo retrieval issues
 - Photo data validation prevents sending corrupted images
+- Database connection issues resolved with automatic reconnection
 - Better error handling improves user experience
 - Detailed debugging information for troubleshooting
 

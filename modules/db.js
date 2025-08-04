@@ -15,15 +15,47 @@ const DB_CONFIG = {
 };
 
 const pool = new sql.ConnectionPool(DB_CONFIG);
-const poolConnect = pool.connect()
-  .then(() => console.log('✔️ DB pool connected'))
-  .catch(err => console.error('❌ DB pool connection failed:', err));
+let poolConnect = pool.connect()
+  .then(() => {
+    console.log('✔️ DB pool connected');
+    return pool;
+  })
+  .catch(err => {
+    console.error('❌ DB pool connection failed:', err);
+    throw err;
+  });
+
+// Function to ensure database connection is active
+async function ensureConnection() {
+  try {
+    // Check if pool is connected
+    if (!pool.connected) {
+      console.log('🔄 [DB] Pool not connected, attempting to reconnect...');
+      await pool.close(); // Close any existing connection
+      poolConnect = pool.connect()
+        .then(() => {
+          console.log('✔️ [DB] Pool reconnected successfully');
+          return pool;
+        })
+        .catch(err => {
+          console.error('❌ [DB] Pool reconnection failed:', err);
+          throw err;
+        });
+    }
+    await poolConnect;
+    return pool;
+  } catch (error) {
+    console.error('❌ [DB] Connection ensure failed:', error.message);
+    throw error;
+  }
+}
 
 async function getUserPhotoFromDB(staffNo) {
   console.log(`🔍 [DB] Searching for photo with StaffNo: ${staffNo}`);
   
   try {
-    await poolConnect;
+    // Ensure database connection is active
+    await ensureConnection();
     const request = pool.request();
     request.input('staffNo', sql.NVarChar, staffNo);
 
@@ -111,4 +143,5 @@ module.exports = {
   DB_CONFIG,
   getUserPhotoFromDB,
   validatePhotoData,
+  ensureConnection,
 };
