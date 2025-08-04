@@ -5481,6 +5481,15 @@ const handleChatBot = async (sock, from, text, isFromMe, hasDocument, hasImage, 
   else if (text.startsWith('/addwifi')) {
     const parts = text.split(/ |\u00A0|'/);
     const poolName = parts[1];
+    
+    // Validate required parameters
+    if (!poolName || !parts[2]) {
+      await sock.sendMessage(from, { 
+        text: `❌ Invalid command format. Usage: /addwifi <poolName> <macAddress> [comment] [/days <number>] [/test]\n\nExample: /addwifi guest 00:11:22:33:44:55 User device /days 7` 
+      });
+      return;
+    }
+    
     const macAddress = parts[2].replace(/:/g, ''); // Remove colons from MAC address
   
     let daysUntilExpiration = null;
