@@ -48,6 +48,17 @@ This journal documents the development and current state of the WhatsApp API int
 
 ##### **2. AI-Powered Features**
 - **Image Analysis**: GPT-4o integration for analyzing images and documents
+
+##### **3. Testing Infrastructure**
+- **Group Message Testing**: Created comprehensive test scripts for `/send-group-message` endpoint
+  - `test-group-message.js` - Simple test script for basic group message functionality
+  - `test-group-message-comprehensive.js` - Advanced test suite covering:
+    - Simple text messages
+    - Messages with mentions
+    - Group ID vs group name usage
+    - Error handling for invalid requests
+    - Non-existent group validation
+  - All tests validate proper IP authentication and response handling
 - **Conversation Handling**: Context-aware responses with quoted message support
 - **Smart Routing**: Automatic message classification and routing
 - **Multi-modal Processing**: Text, image, and document analysis
