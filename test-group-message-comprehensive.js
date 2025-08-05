@@ -12,7 +12,7 @@ const testCases = [
   {
     name: 'Simple text message',
     payload: {
-      name: 'ChatBot',
+      name: 'MTI Alert!!',
       message: 'Test message from comprehensive test script'
     }
   },
