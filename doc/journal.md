@@ -94,6 +94,53 @@ This journal documents the development and current state of the WhatsApp API int
 4. Server successfully initialized and generated new QR code
 5. Ready for re-authentication to resolve Bad MAC errors permanently
 
+**Docker Environment Support (2025-08-05 08:54:10)**
+- **Docker-Specific Tools Created**:
+  - `fix-session-errors-docker.js` - Docker container session management
+  - `docker-session-manager.sh` - Comprehensive Docker session management script
+  - `docker-compose.session-fix.yml` - Enhanced Docker Compose with session management
+  - `Dockerfile.session-enhanced` - Enhanced Dockerfile with session management capabilities
+  - `container-session-manager.sh` - Internal container session management
+
+**Docker Session Management Features**:
+- **Container Health Checks**: Automatic monitoring of WhatsApp API service health
+- **Session Cleanup in Containers**: Clean corrupted sessions without stopping containers
+- **Automated Backup**: Automatic backup of session files before cleanup
+- **Volume Management**: Persistent session data with proper volume mapping
+- **Error Monitoring**: Real-time monitoring for Bad MAC errors with auto-recovery
+- **Graceful Restart**: Container restart capabilities with session preservation
+
+**Docker Usage Examples**:
+```bash
+# Check session health in Docker
+./docker-session-manager.sh health
+
+# Clean corrupted sessions in Docker
+./docker-session-manager.sh clean
+
+# Restart Docker services
+./docker-session-manager.sh restart
+
+# Monitor container logs
+./docker-session-manager.sh logs
+
+# Execute commands in container
+./docker-session-manager.sh exec bash
+```
+
+**Docker Compose Integration**:
+- Enhanced compose file with health checks and session volumes
+- Automatic session backup directory creation
+- Environment variables for session management configuration
+- Optional session monitoring service
+
+**Container Features**:
+- Built-in health checks for service monitoring
+- Automatic session directory initialization
+- Error monitoring with configurable auto-cleanup
+- Graceful shutdown handling
+- Persistent session data across container restarts
+
 ##### **3. Enterprise System Integrations**
 
 - **Active Directory/LDAP**:

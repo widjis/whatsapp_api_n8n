@@ -1,0 +1,102 @@
+# Enhanced Dockerfile with Session Management for WhatsApp API
+# Based on the original Dockerfile with added session management capabilities
+
+FROM node:18-alpine
+
+# Install system dependencies including curl for health checks
+RUN apk add --no-cache \
+    curl \
+    jq \
+    bash \
+    tar \
+    gzip
+
+# Create app directory
+WORKDIR /app
+
+# Create directories for session management
+RUN mkdir -p /app/auth_info \
+    && mkdir -p /app/session_backups \
+    && mkdir -p /app/logs
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application files
+COPY . .
+
+# Copy session management scripts
+COPY fix-session-errors.js ./
+COPY session-error-handler.js ./
+COPY session-error-patch.js ./
+COPY get-date.js ./
+COPY container-session-manager.sh ./
+
+# Create startup script
+COPY <<EOF /app/start.sh
+#!/bin/bash
+
+# Enhanced startup script with session management
+
+log_info() {
+    echo "[\$(date '+%Y-%m-%d %H:%M:%S')] INFO: \$1"
+}
+
+log_error() {
+    echo "[\$(date '+%Y-%m-%d %H:%M:%S')] ERROR: \$1" >&2
+}
+
+# Ensure directories exist
+mkdir -p /app/auth_info /app/session_backups /app/logs
+
+# Initialize baileys_store.json if it doesn't exist
+if [ ! -f "/app/baileys_store.json" ]; then
+    echo '{}' > /app/baileys_store.json
+    log_info "Initialized baileys_store.json"
+fi
+
+# Start error monitoring in background if enabled
+if [ "\${ENABLE_ERROR_MONITORING:-false}" = "true" ]; then
+    /app/container-session-manager.sh monitor &
+    log_info "Error monitoring started"
+fi
+
+# Handle signals for graceful shutdown
+trap 'log_info "Received shutdown signal"; kill -TERM \$PID; wait \$PID' TERM INT
+
+# Start the main application
+log_info "Starting WhatsApp API application..."
+node index.js 2>&1 | tee /app/logs/app.log &
+PID=\$!
+
+# Wait for the main process
+wait \$PID
+EOF
+
+# Make scripts executable
+RUN chmod +x /app/container-session-manager.sh /app/start.sh
+
+# Set proper permissions
+RUN chown -R node:node /app
+
+# Switch to non-root user
+USER node
+
+# Expose port
+EXPOSE 8192
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD /app/container-session-manager.sh health
+
+# Environment variables for session management
+ENV SESSION_CLEANUP_ENABLED=true
+ENV SESSION_ERROR_THRESHOLD=10
+ENV AUTO_CLEANUP_ON_ERROR=false
+ENV ENABLE_ERROR_MONITORING=true
+
+# Use enhanced startup script
+CMD ["/app/start.sh"]
