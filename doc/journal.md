@@ -63,6 +63,37 @@ This journal documents the development and current state of the WhatsApp API int
 - **Smart Routing**: Automatic message classification and routing
 - **Multi-modal Processing**: Text, image, and document analysis
 
+##### **4. Session Management & Error Handling**
+
+**Bad MAC Error Resolution (2025-08-05 08:49:21)**
+- **Issue**: Recurring "Bad MAC Error" messages from libsignal during WhatsApp message decryption
+- **Root Cause**: Corrupted WhatsApp session files in `auth_info` directory and `baileys_store.json`
+- **Solution Implemented**:
+  - Created `fix-session-errors.js` script for automated session cleanup
+  - Created `session-error-handler.js` for proactive error detection and recovery
+  - Created `session-error-patch.js` for integration with main application
+
+**Session Cleanup Tools**
+- **fix-session-errors.js**: Manual session cleanup utility
+  - `node fix-session-errors.js` - Check session health
+  - `node fix-session-errors.js --clean` - Clean corrupted session files
+  - Removes `auth_info` directory
+  - Backs up and clears `baileys_store.json`
+  - Requires QR code re-authentication after cleanup
+
+- **session-error-handler.js**: Automated error recovery system
+  - `SessionErrorHandler` class for monitoring session health
+  - Automatic cleanup when error threshold is reached
+  - Session statistics and health monitoring
+  - Integration endpoints: `/session-health`, `/session-cleanup`
+
+**Resolution Process**
+1. Identified corrupted session files causing Bad MAC errors
+2. Executed session cleanup: `node fix-session-errors.js --clean`
+3. Restarted WhatsApp server with clean session state
+4. Server successfully initialized and generated new QR code
+5. Ready for re-authentication to resolve Bad MAC errors permanently
+
 ##### **3. Enterprise System Integrations**
 
 - **Active Directory/LDAP**:

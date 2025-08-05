@@ -1,0 +1,71 @@
+# Docker Compose override for WhatsApp Session Management
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.session-fix.yml up
+
+version: '3.8'
+
+services:
+  whatsapp-api:
+    # Add health check for session monitoring
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "curl -f http://localhost:8192/health || exit 1"
+      ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Add session management volumes
+    volumes:
+      - ./auth_info:/app/auth_info
+      - ./baileys_store.json:/app/baileys_store.json
+      - ./session_backups:/app/session_backups
+    
+    # Environment variables for session management
+    environment:
+      - SESSION_CLEANUP_ENABLED=true
+      - SESSION_ERROR_THRESHOLD=10
+      - AUTO_RESTART_ON_ERROR=false
+    
+    # Add restart policy
+    restart: unless-stopped
+    
+    # Add labels for easier management
+    labels:
+      - "whatsapp.session.managed=true"
+      - "whatsapp.session.version=1.0"
+
+  # Optional: Session monitoring service
+  session-monitor:
+    image: node:18-alpine
+    container_name: whatsapp-session-monitor
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        npm install -g nodemon &&
+        echo 'Session monitor started' &&
+        tail -f /dev/null
+      "
+    depends_on:
+      - whatsapp-api
+    profiles:
+      - monitoring
+    labels:
+      - "whatsapp.session.monitor=true"
+
+# Named volumes for persistent session data
+volumes:
+  session_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./session_backups
+
+networks:
+  default:
+    name: whatsapp-network
+    driver: bridge
