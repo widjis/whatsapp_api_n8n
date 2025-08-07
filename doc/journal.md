@@ -5,6 +5,60 @@ This journal documents the development and current state of the WhatsApp API int
 
 ---
 
+## Entry: January 17, 2025
+
+### LDAP Integrity Checking Error Resolution
+
+#### **Issue Description**
+The system was experiencing LDAP integrity checking errors when querying Active Directory:
+```
+00002028: LdapErr: DSID-0C0903B8, comment: The server requires binds to turn on integrity checking if SSL\TLS are not already active on the connection
+```
+
+#### **Root Cause**
+Microsoft Windows Server 2025 enforces LDAP signing by default, requiring either:
+1. LDAPS (LDAP over SSL/TLS) on port 636
+2. StartTLS with proper integrity checking
+3. Disabled LDAP signing (not recommended for security)
+
+#### **Solution Implemented**
+1. **Updated LDAP Configuration**: Modified `index.js` to use LDAPS instead of plain LDAP
+   - Changed LDAP URL from `ldap://10.60.10.56:389` to `ldaps://10.60.10.56:636`
+   - Updated both `mtiConfig` and `getLdapClient` function configurations
+   - Removed `starttls: true` option as LDAPS provides native encryption
+   - Kept `rejectUnauthorized: false` for internal certificate handling
+   - Removed `checkServerIdentity: false` (was causing TypeError)
+
+2. **Configuration Changes**:
+   ```javascript
+   // Before
+   url: process.env.LDAP_URL, // ldap://10.60.10.56:389
+   starttls: true,
+   tlsOptions: {
+     rejectUnauthorized: false,
+     checkServerIdentity: false,
+     secureProtocol: 'TLSv1_2_method'
+   }
+   
+   // After
+   url: process.env.LDAP_URL.replace('ldap://10.60.10.56:389', 'ldaps://10.60.10.56:636'),
+   tlsOptions: {
+     rejectUnauthorized: false,
+     secureProtocol: 'TLSv1_2_method'
+   }
+   ```
+
+#### **Verification**
+- Successfully tested `/finduser widji` command
+- LDAP queries now execute without integrity checking errors
+- User search functionality restored to full operation
+- Server logs show "LDAP client connected" and successful user queries
+
+#### **Files Modified**
+- `index.js` - Updated LDAP configuration for both ActiveDirectory2 and ldapjs clients
+
+---
+
 ## Entry: July 30, 2025
 
 ### Current System State

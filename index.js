@@ -315,14 +315,18 @@ const listGroups = async () => {
 
 
 const mtiConfig = {
-  url: process.env.LDAP_URL,
+  url: process.env.LDAP_URL.replace('ldap://10.60.10.56:389', 'ldaps://10.60.10.56:636'),
   baseDN: process.env.LDAP_BASE_DN,
   username: process.env.LDAP_USERNAME,
   password: process.env.LDAP_PASSWORD,
   tlsOptions: {
     // This disables certificate validation (INSECURE)
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    secureProtocol: 'TLSv1_2_method'
   },
+  // Additional security options for LDAP binding
+  bindDN: process.env.LDAP_USERNAME,
+  bindCredentials: process.env.LDAP_PASSWORD,
   attributes: {
     user: [
       'dn',
@@ -359,8 +363,11 @@ const admti = new ActiveDirectory(mtiConfig);
 
 const getLdapClient = async () => {
   const client = ldap.createClient({
-    url: process.env.LDAP_URL,
-    tlsOptions: { rejectUnauthorized: false },
+    url: process.env.LDAP_URL.replace('ldap://10.60.10.56:389', 'ldaps://10.60.10.56:636'),
+    tlsOptions: { 
+      rejectUnauthorized: false,
+      secureProtocol: 'TLSv1_2_method'
+    },
   });
   return new Promise((resolve, reject) => {
     client.bind(process.env.BIND_DN, process.env.BIND_PW, (err) => {
