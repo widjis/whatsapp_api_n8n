@@ -59,6 +59,40 @@ Microsoft Windows Server 2025 enforces LDAP signing by default, requiring either
 
 ---
 
+## Entry: January 17, 2025
+
+### N8N Webhook URL Configuration Improvement
+
+#### **Issue Description**
+The N8N webhook URL was hardcoded in the application files, making it difficult to manage different environments and configurations.
+
+#### **Solution Implemented**
+1. **Added Environment Variable**: Created `N8N_WEBHOOK_URL` in `.env` file
+   - Set to `https://n8n.merdekabattery.com:5678/webhook/whatsappw`
+   - Allows easy configuration changes without code modification
+
+2. **Updated Code References**: Modified hardcoded webhook URLs to use environment variable
+   ```javascript
+   // Before
+   const textWebhookUrl = 'https://n8n.merdekabattery.com:5678/webhook/whatsappw';
+   
+   // After
+   const textWebhookUrl = process.env.N8N_WEBHOOK_URL;
+   ```
+
+#### **Benefits**
+- **Environment Flexibility**: Easy switching between development, staging, and production webhooks
+- **Security**: Sensitive URLs no longer hardcoded in source code
+- **Maintainability**: Single point of configuration for webhook URL changes
+- **Deployment**: Simplified configuration management across different environments
+
+#### **Files Modified**
+- `.env` - Added `N8N_WEBHOOK_URL` environment variable
+- `index.js` - Updated to use environment variable for webhook URL
+- `index_old.js` - Updated for consistency
+
+---
+
 ## Entry: July 30, 2025
 
 ### Current System State

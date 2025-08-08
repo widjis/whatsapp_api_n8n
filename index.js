@@ -2856,7 +2856,7 @@ const handleAssistantMessage = async (sock, message, pushName = "Unknown User") 
     //const textWebhookUrl = 'https://n8n.merdekabattery.com:5678/webhook-test/taskerai';
     //const textWebhookUrl = 'http://localhost:5678/webhook-test/7370e7c9-9fa9-4e20-a4a4-3caf6d84887d';
     //const textWebhookUrl = 'http://localhost:5678/webhook/whatsappw';
-    const textWebhookUrl = 'https://n8n.merdekabattery.com:5678/webhook/whatsappw';
+    const textWebhookUrl = process.env.N8N_WEBHOOK_URL;
     const from = message.key.remoteJid;
     const wa_id = from.split('@')[0];
 
